@@ -1,0 +1,7 @@
+Fast conrrection Strategy - Optimized parameters
+Settings:    DROPPER_TIME_FRAM: 9    DROPPED_DOWN: 11    PT_PIP: 145    SL_PIP: 105    P365: 19619.0    Num Of Trades: 3285    drawdown 20.554482518341633    sharperatio OrderedDict([('sharperatio', 4.923524940340506)])
+Settings:    DROPPER_TIME_FRAM: 7    DROPPED_DOWN: 5    PT_PIP: 120    SL_PIP: 105    P365: 19975.0    Num Of Trades: 4071    drawdown 20.466294989814635    sharperatio OrderedDict([('sharperatio', 445.8963221699424)])
+Settings:    DROPPER_TIME_FRAM: 11    DROPPED_DOWN: 23    PT_PIP: 115    SL_PIP: 105    P365: 19992.0    Num Of Trades: 4001    drawdown 20.682762502403044    sharperatio OrderedDict([('sharperatio', 4.908250237500038)])
+Settings:    DROPPER_TIME_FRAM: 17    DROPPED_DOWN: 131    PT_PIP: 65    SL_PIP: 5    P365: 2904.0    Num Of Trades: 14260    drawdown 17.70704626471557    sharperatio OrderedDict([('sharperatio', -0.11875447412031748)])
+Settings:    DROPPER_TIME_FRAM: 19    DROPPED_DOWN: 221    PT_PIP: 105    SL_PIP: 115    P365: 10264.0    Num Of Trades: 2064    drawdown 16.26608589967401    sharperatio OrderedDict([('sharperatio', 2.360357763658343)])
+Settings:    DROPPER_TIME_FRAM: 23    DROPPED_DOWN: 293    PT_PIP: 125    SL_PIP: 130    P365: 11498.0    Num Of Trades: 1527    drawdown 15.160202451017918    sharperatio OrderedDict([('sharperatio', 1.6605832280707686)])
