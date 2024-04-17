@@ -15,12 +15,17 @@ import backtrader.analyzers as btanalyzers
 
 # Pandas
 import pandas as pd
+import numpy as np
+
+# process
+from multiprocessing import Process
 
 # matplotlib
 # import matplotlib.pyplot as plt
 
 # Own
-from Fast_Correction_Strategy import FastCorrectionStrategy
+# from RSI_Strategy import RSIStrategy
+from RSI_Strategy_dev import RSIStrategy
 
 
 def get_binance_bars(symbol, interval, start_time, end_time):
@@ -53,7 +58,7 @@ def get_binance_bars(symbol, interval, start_time, end_time):
     return df
 
 
-def binance_download(symbol, length):
+def binance_download(symbol, length, back_shift):
     file_name = "binance_data/" + symbol + "_" + str(length)
 
     if os.path.exists(file_name):
@@ -63,12 +68,12 @@ def binance_download(symbol, length):
     else:
         pbar = tqdm(total=100)
         df_list = []
-        now = dt.datetime.now()
+        now = dt.datetime.now() - dt.timedelta(minutes=back_shift)
         last_datetime = now - dt.timedelta(minutes=length)
         # last_datetime = dt.datetime(2019, 1, 1)
         while True:
             # for it in tqdm(range(15)):
-            new_df = get_binance_bars(symbol, '1m', last_datetime, dt.datetime.now())
+            new_df = get_binance_bars(symbol, '1m', last_datetime, now)
             if new_df is None:
                 break
             df_list.append(new_df)
@@ -82,10 +87,11 @@ def binance_download(symbol, length):
 
 
 def process_combination(df,
-                        dropeed_time_frame=25,
-                        dropped_down=70,
-                        pt_pip=50,
-                        sl_pip=50,
+                        rsi_period,
+                        std_period,
+                        dev_min,
+                        dev_max,
+                        c,
                         plot=False):
 
     coin_target = 'FDUSD'  # the base ticker in which calculations will be performed
@@ -96,11 +102,12 @@ def process_combination(df,
     data = bt.feeds.PandasData(dataname=df)
     cerebro.adddata(data)
 
-    cerebro.addstrategy(FastCorrectionStrategy,
-                        dropeed_time_frame=dropeed_time_frame,
-                        dropped_down=dropped_down,
-                        pt_pip=pt_pip,
-                        sl_pip=sl_pip)
+    cerebro.addstrategy(RSIStrategy,
+                        rsi_period=rsi_period,
+                        std_period=std_period,
+                        dev_min=dev_min,
+                        dev_max=dev_max,
+                        c=c,)
 
     start_cash = 10000.0
     cerebro.broker.setcash(start_cash)
@@ -108,6 +115,8 @@ def process_combination(df,
     # cerebro.addsizer(bt.sizers.AllInSizer)
 
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trade_analyzer")
+    cerebro.addanalyzer(bt.analyzers.SQN, _name="sqn")
+    cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name="annualreturn")
     cerebro.addanalyzer(btanalyzers.SharpeRatio, _name="sharpe", riskfreerate=0.1)
     cerebro.addanalyzer(btanalyzers.Transactions, _name="trans")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -117,55 +126,53 @@ def process_combination(df,
     time_period_day = df.index[-1] - df.index[0]
     time_period_day = time_period_day.days
     p365 = round((cerebro.broker.getvalue() - start_cash) / time_period_day * 365, 0)
-    # print("Ending balance:", round(cerebro.broker.getvalue(),0),
-    #       # "Sharpe", result[0].analyzers.sharpe.get_analysis(),
-    #       "   Number of Trades:", len(result[0].analyzers.trans.get_analysis()),
-    #       "      365:", p365)
-    drawdown = result[0].analyzers.getbyname('drawdown').get_analysis().max.drawdown
+    drawdown = round(result[0].analyzers.getbyname('drawdown').get_analysis().max.moneydown, 2)
     transactions = len(result[0].analyzers.trans.get_analysis())
-    sharperatio = result[0].analyzers.sharpe.get_analysis()
+    sharperatio = result[0].analyzers.sharpe.get_analysis()['sharperatio']
+    annualreturn = result[0].analyzers.getbyname('annualreturn').get_analysis()
+    sqn = round(result[0].analyzers.getbyname('sqn').get_analysis()['sqn'], 2)
 
     if plot:
         cerebro.plot()
 
-    return result, p365, transactions, drawdown, sharperatio
+    return result, p365, transactions, drawdown, sharperatio, annualreturn, sqn
 
 
-if __name__ == "__main__":
+def worker(worker_no, max_worker, df):
+    print(f"run worker {max_worker} / {worker_no + 1}")
+    # df = binance_download("BTCFDUSD", 60 * 24 * 362)  # in minute from now()
 
-    df = binance_download("BTCFDUSD", 60 * 24 * 365)  # in minute from now()
+    # print(df.T)
 
-    print(df.T)
+    rsi_period = np.arange(5, 30, 2)
+    std_period = np.arange(5, 30, 2)
+    dev_min = np.arange(1, 15, 1)
+    dev_max = np.arange(16, 20, 1)
+    c = np.arange(1, 2, 1)
 
-    comb_dropeed_time_frame = range(3, 30, 2)  # [3, 6, 9, 12, 15, 18, 21]
-    comb_dropped_down = range(5, 300, 3)  # [110, 120, 140, 16]
-    comb_pt_pip = range(5, 150, 5)  # [30, 40, 50]
-    comb_sl_pip = range(5, 150, 5)  # [30, 40, 50, 60]
-
-    # comb_minimum_steps = [100]
-    # comb_dropeed_time_frame = [15]
-    # comb_dropped_down = [110]
-    # comb_pt_pip = [30]
-    # comb_sl_pip = [40]
-
-    possible_settings = [comb_dropeed_time_frame, comb_dropped_down,
-                         comb_pt_pip, comb_sl_pip]
-    all_combinations = list(itertools.product(*possible_settings))
+    possible_settings = [rsi_period, std_period, dev_min, dev_max, c]
+    all_combinations = np.array(tuple(itertools.product(*possible_settings)), dtype=int)
     all_res = []
 
-    selected_combinations = random.sample(all_combinations, min(500, len(all_combinations)))
-    p365 = 0
+    selected_combinations = np.array_split(all_combinations, max_worker)[worker_no]
+    np.random.shuffle(selected_combinations)
+
+    p365 = -10000
 
     for c in selected_combinations:
         (res, act_p365,
          num_of_trades,
          drawdown,
-         sharperatio) = process_combination(df,
-                                            dropeed_time_frame=c[0],
-                                            dropped_down=c[1],
-                                            pt_pip=c[2],
-                                            sl_pip=c[3],
-                                            plot=False)
+         sharperatio,
+         annualreturn,
+         sqn) = process_combination(df,
+                                    rsi_period=int(c[0]),
+                                    std_period=int(c[1]),
+                                    dev_min=int(c[2]),
+                                    dev_max=int(c[3]),
+                                    c=int(c[4]),
+                                    plot=False)
+
         all_res.append(res)
 
         if act_p365 > p365:
@@ -174,23 +181,77 @@ if __name__ == "__main__":
 
             with open('HPO_results.txt', 'a') as file:
                 print("Settings:",
-                      '   DROPPER_TIME_FRAM:', c[0],
-                      '   DROPPED_DOWN:', c[1],
-                      '   PT_PIP:', c[2],
-                      '   SL_PIP:', c[3],
-                      '   P365:', act_p365,
-                      '   Num Of Trades:', num_of_trades,
-                      '   drawdown', drawdown,
-                      '   sharperatio', sharperatio,
+                      '   rsi_period', c[0],
+                      '   std_period', c[1],
+                      '   dev_min', c[2],
+                      '   dev_max', c[3],
+                      '   c', c[4],
+                      '   P365', act_p365,
+                      '   Trades', num_of_trades,
+                      '   Drawdown', drawdown,
+                      '   Sharpe', sharperatio,
+                      '   ann.ret.', annualreturn,
+                      '   sqn', sqn,
                       file=file)
 
-            print("Settings:",
-                  '   DROPPER_TIME_FRAM:', c[0],
-                  '   DROPPED_DOWN:', c[1],
-                  '   PT_PIP:', c[2],
-                  '   SL_PIP:', c[3],
-                  '   P365:', act_p365,
-                  '   Num Of Trades:', num_of_trades,
-                  '   drawdown', drawdown,
-                  '   sharperatio', sharperatio)
+            print(' rsi_period', c[0],
+                  ' std_period', c[1],
+                  ' dev_min', c[2],
+                  ' dev_max', c[3],
+                  ' c', c[4],
+                  ' P365', act_p365,
+                  ' Trades', num_of_trades,
+                  ' Drawdown', drawdown,
+                  ' Sharpe', sharperatio,
+                  ' ann.ret.', annualreturn,
+                  ' sqn', sqn)
 
+
+if __name__ == "__main__":
+
+    # run_type = 'HPO'
+    run_type = 'SET'
+
+    df = binance_download("BTCFDUSD", 60 * 24 * 500, 60 * 24 * 30)  # in minute from now()
+    # df = binance_download("BTCFDUSD", 60 * 24 * 10, 60 * 24 * 0)  # in minute from now()
+    pd.set_option('display.precision', 8)
+    # print(df.T)
+    print(df[["datetime", "close"]].head(10))
+    print(df[["datetime", "close"]].tail(10))
+
+    if run_type == "HPO":
+
+        processors_use = 14
+        # processors_use = 6
+        processes = [None] * processors_use
+
+        for p in range(processors_use):
+
+            processes[p] = Process(target=worker, kwargs={
+                'worker_no': p,
+                'max_worker': processors_use,
+                'df': df,
+            })
+            processes[p].start()
+
+        for p in range(processors_use):
+            processes[p].join()
+
+    elif run_type == "SET":
+
+         # rsi_period 15  std_period 15  dev_min 8  dev_max 17  c 1
+
+        (res, act_p365, num_of_trades, drawdown,
+         sharperatio, annualreturn, sqn) = process_combination(df, rsi_period=15,
+                                                               std_period=15,
+                                                               dev_min=8,
+                                                               dev_max=17,
+                                                               c=1,
+                                                               plot=True)
+        print("Settings:",
+              '   P365:', act_p365,
+              '   Num Of Trades:', num_of_trades,
+              '   drawdown', drawdown,
+              '   sharperatio', sharperatio,
+              '   annual return', annualreturn,
+              '   sqn', sqn)
