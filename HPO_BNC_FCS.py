@@ -25,7 +25,11 @@ from multiprocessing import Process
 
 # Own
 # from RSI_Strategy import RSIStrategy
-from RSI_Strategy_dev import RSIStrategy
+# from RSI_Strategy_dev import RSIStrategy
+# from RSI_Strategy_dev2 import RSIStrategy
+from RSI_Strategy_dev3 import RSIStrategy
+
+pd.set_option('display.precision', 8)
 
 
 def get_binance_bars(symbol, interval, start_time, end_time):
@@ -58,8 +62,11 @@ def get_binance_bars(symbol, interval, start_time, end_time):
     return df
 
 
-def binance_download(symbol, length, back_shift):
+def binance_download(symbol, length, back_shift, refresh=False):
     file_name = "binance_data/" + symbol + "_" + str(length)
+
+    if refresh and os.path.exists(file_name):
+        os.remove(file_name)
 
     if os.path.exists(file_name):
         # Load the data from the CSV file
@@ -93,7 +100,6 @@ def process_combination(df,
                         dev_max,
                         c,
                         plot=False):
-
     coin_target = 'FDUSD'  # the base ticker in which calculations will be performed
     symbol = 'BTC' + coin_target
 
@@ -107,7 +113,7 @@ def process_combination(df,
                         std_period=std_period,
                         dev_min=dev_min,
                         dev_max=dev_max,
-                        c=c,)
+                        c=c, )
 
     start_cash = 10000.0
     cerebro.broker.setcash(start_cash)
@@ -131,23 +137,24 @@ def process_combination(df,
     sharperatio = result[0].analyzers.sharpe.get_analysis()['sharperatio']
     annualreturn = result[0].analyzers.getbyname('annualreturn').get_analysis()
     sqn = round(result[0].analyzers.getbyname('sqn').get_analysis()['sqn'], 2)
+    nom_pnl = round((cerebro.broker.getvalue() - start_cash), 3)
 
     if plot:
         cerebro.plot()
 
-    return result, p365, transactions, drawdown, sharperatio, annualreturn, sqn
+    return result, p365, transactions, drawdown, sharperatio, annualreturn, sqn ,nom_pnl
 
 
-def worker(worker_no, max_worker, df):
+def hpo_worker(worker_no, max_worker, df):
     print(f"run worker {max_worker} / {worker_no + 1}")
     # df = binance_download("BTCFDUSD", 60 * 24 * 362)  # in minute from now()
 
     # print(df.T)
 
-    rsi_period = np.arange(5, 30, 2)
-    std_period = np.arange(5, 30, 2)
-    dev_min = np.arange(1, 15, 1)
-    dev_max = np.arange(16, 20, 1)
+    rsi_period = np.arange(12, 35, 1)
+    std_period = np.arange(3, 35, 1)
+    dev_min = np.arange(3, 4, 1)
+    dev_max = np.arange(3, 4, 1)
     c = np.arange(1, 2, 1)
 
     possible_settings = [rsi_period, std_period, dev_min, dev_max, c]
@@ -165,13 +172,13 @@ def worker(worker_no, max_worker, df):
          drawdown,
          sharperatio,
          annualreturn,
-         sqn) = process_combination(df,
-                                    rsi_period=int(c[0]),
-                                    std_period=int(c[1]),
-                                    dev_min=int(c[2]),
-                                    dev_max=int(c[3]),
-                                    c=int(c[4]),
-                                    plot=False)
+         sqn, nom_pnl) = process_combination(df,
+                                             rsi_period=int(c[0]),
+                                             std_period=int(c[1]),
+                                             dev_min=int(c[2]),
+                                             dev_max=int(c[3]),
+                                             c=int(c[4]),
+                                             plot=False)
 
         all_res.append(res)
 
@@ -192,6 +199,7 @@ def worker(worker_no, max_worker, df):
                       '   Sharpe', sharperatio,
                       '   ann.ret.', annualreturn,
                       '   sqn', sqn,
+                      '   nom_pnl', nom_pnl,
                       file=file)
 
             print(' rsi_period', c[0],
@@ -211,23 +219,21 @@ if __name__ == "__main__":
 
     # run_type = 'HPO'
     run_type = 'SET'
-
-    df = binance_download("BTCFDUSD", 60 * 24 * 500, 60 * 24 * 30)  # in minute from now()
-    # df = binance_download("BTCFDUSD", 60 * 24 * 10, 60 * 24 * 0)  # in minute from now()
-    pd.set_option('display.precision', 8)
-    # print(df.T)
-    print(df[["datetime", "close"]].head(10))
-    print(df[["datetime", "close"]].tail(10))
+    # run_type = 'GAP_TEST'
 
     if run_type == "HPO":
+        df = binance_download("BTCFDUSD", 60 * 24 * 60, 60 * 24 * 90, refresh=True)  # in minute from now()
+        # df = binance_download("BTCFDUSD", 60 * 24 * 60, 60 * 24 * 0, refresh=False)  # in minute from now()
+        # df = binance_download("BTCFDUSD", 60 * 24 * 60, 60 * 24 * 0)  # in minute from now()
+        # print(df.T)
+        print(df[["datetime", "close"]].index[1], "-", df[["datetime", "close"]].index[-1])
 
         processors_use = 14
         # processors_use = 6
         processes = [None] * processors_use
 
         for p in range(processors_use):
-
-            processes[p] = Process(target=worker, kwargs={
+            processes[p] = Process(target=hpo_worker, kwargs={
                 'worker_no': p,
                 'max_worker': processors_use,
                 'df': df,
@@ -238,16 +244,20 @@ if __name__ == "__main__":
             processes[p].join()
 
     elif run_type == "SET":
-
-         # rsi_period 15  std_period 15  dev_min 8  dev_max 17  c 1
-
+        df = binance_download("BTCFDUSD", 60 * 24 * 60, 60 * 24 * 0, refresh=True)  # in minute from now()
+        # df = binance_download("BTCFDUSD", 60 * 24 * 60, 60 * 24 * 0, refresh=False)  # in minute from now()
+        # df = binance_download("BTCFDUSD", 60 * 24 * 60, 60 * 24 * 0)  # in minute from now()
+        # print(df.T)
+        print(df[["datetime", "close"]].index[1], "-", df[["datetime", "close"]].index[-1])
+        # rsi_period 15  std_period 23  dev_min 7  dev_max 27  c 1
+        # rsi_period 28  std_period 5  dev_min 59  dev_max 3  c 1
         (res, act_p365, num_of_trades, drawdown,
-         sharperatio, annualreturn, sqn) = process_combination(df, rsi_period=15,
-                                                               std_period=15,
-                                                               dev_min=8,
-                                                               dev_max=17,
-                                                               c=1,
-                                                               plot=True)
+         sharperatio, annualreturn, sqn, nom_pnl) = process_combination(df, rsi_period=28,
+                                                                        std_period=5,
+                                                                        dev_min=59,
+                                                                        dev_max=3,
+                                                                        c=1,
+                                                                        plot=True)
         print("Settings:",
               '   P365:', act_p365,
               '   Num Of Trades:', num_of_trades,
@@ -255,3 +265,36 @@ if __name__ == "__main__":
               '   sharperatio', sharperatio,
               '   annual return', annualreturn,
               '   sqn', sqn)
+
+    elif run_type == "GAP_TEST":
+        print("GAP TEST")
+
+        sum_pnl = 0
+        rnd_time_period = random.randint(8,16)
+        for i in range(5):
+            df = binance_download("BTCFDUSD", 60 * 24 * rnd_time_period, 60 * 24 * (i * rnd_time_period * 2), refresh=True)
+
+            print(df[["datetime", "close"]].index[1], "-", df[["datetime", "close"]].index[-1])
+
+            # rsi_period 15  std_period 23  dev_min 7  dev_max 27  c 1
+            # rsi_period 28  std_period 5  dev_min 59  dev_max 3  c 1
+            # rsi_period 17  std_period 10  dev_min 3  dev_max 3  c 1
+            # rsi_period 20  std_period 33  dev_min 3  dev_max 3  c 1
+
+            (res, act_p365, num_of_trades, drawdown,
+             sharperatio, annualreturn, sqn, nom_pln) = process_combination(df, rsi_period=15,
+                                                                            std_period=29,
+                                                                            dev_min=3,
+                                                                            dev_max=3,
+                                                                            c=1,
+                                                                            plot=False)
+            sum_pnl += nom_pln
+            print("")
+            print(i + 1,
+                  '   nom_pnl:', nom_pln,
+                  '   sum_pnl:', sum_pnl,
+                  '   Num Of Trades:', num_of_trades,
+                  '   drawdown', drawdown,
+                  '   sharperatio', sharperatio,
+                  '   annual return', annualreturn,
+                  '   sqn', sqn)

@@ -4,17 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b2ba4198-8589-47d6-a08c-50b13e12d621" name="Changes" comment="HPO and LIVE and Strategy separated">
-      <change afterPath="$PROJECT_DIR$/.idea/BinanceFastCorrection.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/RSI_Strategy.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/RSI_Strategy_dev.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Fast_Correction_Strategy.py" beforeDir="false" />
+    <list default="true" id="b2ba4198-8589-47d6-a08c-50b13e12d621" name="Changes" comment="First setiing">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/HPO_BNC_FCS.py" beforeDir="false" afterPath="$PROJECT_DIR$/HPO_BNC_FCS.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/HPO_results.txt" beforeDir="false" afterPath="$PROJECT_DIR$/HPO_results.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/LIVE_BNC_FCS.py" beforeDir="false" afterPath="$PROJECT_DIR$/LIVE_BNC_FCS.py" afterDir="false" />
@@ -38,7 +29,9 @@
   &quot;associatedIndex&quot;: 6
 }</component>
   <component name="ProjectId" id="2eiZW48kSczLb35hxKyoXdjJYnN" />
-  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <ConfirmationsSetting value="1" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -50,8 +43,11 @@
     "Python.Fast_Correction_Strategy.executor": "Run",
     "Python.HPO_BNC_FCS.executor": "Run",
     "Python.LIVE_BNC_FCS.executor": "Run",
+    "Python.MONITOR.executor": "Run",
     "Python.RSI_Strategy.executor": "Run",
     "Python.RSI_Strategy_dev.executor": "Run",
+    "Python.RSI_Strategy_dev3.executor": "Run",
+    "Python.TRADE_SERVER.executor": "Run",
     "Python.monitor.executor": "Run",
     "Python.popup.executor": "Run",
     "Python.scratch.executor": "Run",
@@ -106,12 +102,21 @@
       <option name="project" value="LOCAL" />
       <updated>1712416543927</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="First setiing">
+      <option name="closed" value="true" />
+      <created>1713371789093</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1713371789093</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Backtrader fastcorrection strategy on binance" />
     <MESSAGE value="HPO and LIVE and Strategy separated" />
-    <option name="LAST_COMMIT_MESSAGE" value="HPO and LIVE and Strategy separated" />
+    <MESSAGE value="First setiing" />
+    <option name="LAST_COMMIT_MESSAGE" value="First setiing" />
   </component>
 </project>

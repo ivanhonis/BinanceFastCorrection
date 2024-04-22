@@ -33,160 +33,13 @@ import seaborn as sns
 # Data transfer
 import ftplib
 import os
-
-# Own
-# from RSI_Strategy import RSIStrategy
-# from RSI_Strategy_dev import RSIStrategy
-from RSI_Strategy_dev2 import RSIStrategy
-from RSI_Strategy_dev3 import RSIStrategy
-
-
-def get_api_key():
-    # api_acces_key.json file is:
-    #
-    # {
-    #     "api_key": "xxxxx",
-    #     "secure_key": "yyyyy"
-    # }
-
-    json_file_path = 'api_acces_key.json'
-    with open(json_file_path, 'r') as file:
-        keys = json.load(file)
-
-    api_key = keys['api_key']
-    secure_key = keys['secure_key']
-
-    return api_key, secure_key
-
-
-def get_public_ip():
-    try:
-        response = requests.get('https://api.ipify.org')
-        if response.status_code == 200:
-            return response.text
-        else:
-            return "Could not obtain IP address"
-    except Exception as e:
-        print(f"Error obtaining public IP address: {e}")
-        return None
-
-
-def get_binance_bars(symbol, interval, startTime, endTime):
-    url = "https://api.binance.com/api/v3/klines"
-
-    startTime = str(int(startTime.timestamp() * 1000))
-    endTime = str(int(endTime.timestamp() * 1000))
-    limit = '1000'
-
-    req_params = {"symbol": symbol, 'interval': interval, 'startTime': startTime, 'endTime': endTime, 'limit': limit}
-
-    df = pd.DataFrame(json.loads(requests.get(url, params=req_params).text))
-
-    if (len(df.index) == 0):
-        return None
-
-    df = df.iloc[:, 0:6]
-    df.columns = ['datetime', 'open', 'high', 'low', 'close', 'volume']
-
-    df.open = df.open.astype("float")
-    df.high = df.high.astype("float")
-    df.low = df.low.astype("float")
-    df.close = df.close.astype("float")
-    df.volume = df.volume.astype("float")
-
-    df['adj_close'] = df['close']
-
-    df.index = [dt.datetime.fromtimestamp(x / 1000.0) for x in df.datetime]
-
-    return df
-
-
-def binance_download(symbol, length):
-    file_name = "binance_data/" + symbol + "_" + str(length)
-
-    if os.path.exists(file_name):
-        # Load the data from the CSV file
-        df = pd.read_hdf(file_name, "df")
-        print("Loaded data from existing file.")
-    else:
-        pbar = tqdm(total=100)
-        df_list = []
-        now = dt.datetime.now()
-        last_datetime = now - dt.timedelta(minutes=length)
-        # last_datetime = dt.datetime(2019, 1, 1)
-        while True:
-            # for it in tqdm(range(15)):
-            new_df = get_binance_bars(symbol, '1m', last_datetime, dt.datetime.now())
-            if new_df is None:
-                break
-            df_list.append(new_df)
-            pbar.update(1)
-            last_datetime = max(new_df.index) + dt.timedelta(0, 1)
-
-        df = pd.concat(df_list)
-        df.to_hdf(file_name, key='df', mode='w')
-
-    return df
-
-
-def run_live_trade(rsi_period=45,
-                   std_period=45,
-                   dev_min=10,
-                   dev_max=35,
-                   c=3, ):
-
-    api_key, secure_key = get_api_key()
-
-    coin_target = 'FDUSD'  # the base ticker in which calculations will be performed
-    symbol = 'BTC' + coin_target
-
-    cerebro = bt.Cerebro()
-
-    store = BinanceStore(
-        api_key=api_key,
-        api_secret=secure_key,
-        coin_target=coin_target,
-        testnet=False,
-        # tld="us",  # for US customers => to use the 'Binance.us' url
-    )  # Binance Storage
-    broker = store.getbroker()
-    cerebro.setbroker(broker)
-
-    from_date = dt.datetime.utcnow() - dt.timedelta(minutes=60 * 1)  # we take data for the last 1 hour
-    data = store.getdata(timeframe=bt.TimeFrame.Minutes, compression=1, dataname=symbol, start_date=from_date, LiveBars=True)
-
-    cerebro.adddata(data)
-
-    # a HPO 10000 dolláros kezdőportfolióval dolgozik
-    # ezért ezt a paramétert hozzá kell állítani az aktuális cash-hez
-    cash = cerebro.broker.getcash()
-
-    cerebro.addstrategy(RSIStrategy,
-                        rsi_period=rsi_period,
-                        std_period=std_period,
-                        dev_min=dev_min,
-                        dev_max=dev_max,
-                        c=c,
-                        show_log=True,
-                        live_run=True
-                        )
-
-    # cerebro.addsizer(bt.sizers.PercentSizer, percents=100)
-    # cerebro.addsizer(bt.sizers.AllInSizer)
-
-    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trade_analyzer")
-    cerebro.addanalyzer(btanalyzers.SharpeRatio, _name="sharpe", riskfreerate=0.1)
-    cerebro.addanalyzer(btanalyzers.Transactions, _name="trans")
-    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
-
-    result = cerebro.run()
-    cerebro.plot()
-    return result
+import paramiko
 
 
 class Monitor:
 
-    def __init__(self):
+    def __init__(self, external_server=False):
+        self.external_server = external_server
         self.data = {}
         self.open = np.array([])
         self.high = np.array([])
@@ -199,10 +52,11 @@ class Monitor:
         self.meta = {}
 
         self.p = {0: {}}
-        self.anim_speed = 1000 * 3
+        self.anim_speed = 1000 * 30
         self.last_plotted_close = np.array([0]*120)
         self.xaxis = np.array([])
         self.time_period = 0
+        self.is_load_data_run = True
 
     def start_threads(self):
         thread1 = threading.Thread(target=self.load_data)
@@ -215,37 +69,46 @@ class Monitor:
         thread1.join()
         # thread2.join()
 
-    def ftp_download(self):
-        server_address = ""
-        username, password = ""
-        remote_filepath = ""
-        local_filepath = ""
+    @staticmethod
+    def download_file_sftp():
+        hostname = "167.179.110.126"
+        port = 22
+        username = "root"
+        password = "fJ2{J3AAS4LCM.Dn"
+        remote_filepath = "data_transfer_for_process.pickle"
+        local_filepath = "data_transfer_for_process.pickle"
+        max_attempts = 4
 
-        max_attempts = 3
-        attempts = 0
+        # Initialize the SSH client
+        client = paramiko.SSHClient()
+        # Add server's SSH key automatically if missing
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-        while attempts < max_attempts:
+        attempt = 0
+        while attempt < max_attempts:
             try:
-                with ftplib.FTP(server_address) as ftp:
-                    ftp.login(user=username, passwd=password)  # Log in to the server
+                # Connect to the server
+                client.connect(hostname, port=port, username=username, password=password)
+                # Start SFTP session
+                sftp = client.open_sftp()
+                # Download file
+                sftp.get(remote_filepath, local_filepath)
+                # Close SFTP session
+                sftp.close()
+                break  # Exit the loop if download was successful
+            except (paramiko.SSHException, paramiko.sftp_lib.SFTPError) as e:
+                print(f"Attempt {attempt + 1} failed: {e}")
+                time.sleep(5)  # Wait for 5 seconds before retrying
+                attempt += 1
+            finally:
+                # Ensure the client is closed properly
+                client.close()
 
-                    directory, filename = os.path.split(remote_filepath)
-                    if directory:
-                        ftp.cwd(directory)
+        if attempt == max_attempts:
+            print("Failed to download the file after maximum attempts.")
 
-                    with open(local_filepath, 'wb') as local_file:
-                        ftp.retrbinary(f'RETR {filename}', local_file.write)
-
-                print("Download successful.")
-                break  # Exit the loop if the download is successful
-
-            except ftplib.all_errors as e:
-                attempts += 1
-                print(f"Attempt {attempts}: Download failed with error {e}")
-                if attempts == max_attempts:
-                    print("Maximum retry attempts reached, download failed.")
-
-    def pickle_loader(self, filename, attempts=3, delay=3):
+    @staticmethod
+    def pickle_loader(filename, attempts=3, delay=3):
         for attempt in range(attempts):
             try:
                 with open(filename, 'rb') as handle:
@@ -259,8 +122,11 @@ class Monitor:
 
     def load_data(self):
         print("data readin threat start")
-        while True:
+        while self.is_load_data_run:
+            if self.external_server:
+                self.download_file_sftp()
             self.data = self.pickle_loader('data_transfer_for_process.pickle')
+
             self.open = np.array(self.data['open'], dtype=float)[::-1]
             self.high = np.array(self.data['high'], dtype=float)[::-1]
             self.low = np.array(self.data['low'], dtype=float)[::-1]
@@ -277,12 +143,17 @@ class Monitor:
             # print(self.low)
             # print(self.close)
             # print(self.meta)
-            time.sleep(25)
+            time.sleep(60)
+        print("Stop Monitor load data.")
+
+    def on_close(self, event):
+        print('exit')
+        self.is_load_data_run = False
 
     def start_create_chart_thread(self):
         print('start_create_chart_thread')
         sns.set_theme(style="whitegrid", font_scale=.6)
-        time.sleep(3)
+        time.sleep(20)
 
         # wm_geometry = ['+0+0',
         #                '+1920+0',
@@ -302,7 +173,7 @@ class Monitor:
                                                              figsize=(8, 4),
                                                              num=sid)
 
-        # self.p[sid]['fig'].canvas.mpl_connect('close_event', self.on_close)
+        self.p[sid]['fig'].canvas.mpl_connect('close_event', self.on_close)
 
         self.p[sid]['ax11'] = self.p[sid]['fig'].add_subplot(rows, 1, 1)
         self.p[sid]['ax12'] = self.p[sid]['fig'].add_subplot(rows, 1, 2)
@@ -343,7 +214,7 @@ class Monitor:
             self.p[sid]['ax14'].xaxis.set_major_formatter(plt.NullFormatter())
             self.p[sid]['ax14'].set_facecolor('#e5e5e5')
 
-            self.meta['0'] = str(datetime.datetime.now().strftime("%Y. %m. %d. %H:%M:%S"))
+            self.meta['0'] = "Local time:" + str(datetime.datetime.now().strftime("%Y. %m. %d. %H:%M:%S"))
 
             for i, key in enumerate(self.meta):
                 # print(i, key, self.meta[key])
@@ -577,30 +448,6 @@ class Monitor:
     #         plt.pause(1)
 
 
-def run_monitor():
-
-    m = Monitor()
-    m.start_threads()
-
-
 if __name__ == "__main__":
-    print("Public IP (for Binance api)", get_public_ip())
-
-    # rsi_period 5  std_period 20  dev_min 15  dev_max 35  c 2
-
-    p1 = Process(target=run_live_trade, kwargs={'rsi_period': 15,
-                                                'std_period': 23,
-                                                'dev_min': 7,
-                                                'dev_max': 27,
-                                                'c': 1
-                                                })
-
-    p2 = Process(target=run_monitor, kwargs={})
-
-    p1.start()
-
-    time.sleep(5)
-    p2.start()
-
-    p1.join()
-    p2.join()
+    m = Monitor(external_server=True)
+    m.start_threads()
