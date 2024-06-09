@@ -4,34 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b2ba4198-8589-47d6-a08c-50b13e12d621" name="Changes" comment="Monitor and Tradeserver separated, we can run it inexternal server.">
-      <change afterPath="$PROJECT_DIR$/EMA_Shift_Multi_Strategy.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/HPO_Multi.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/TRADE_SERVER_FUTURES.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/archive_codes/HPO.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/archive_codes/RSI_Strategy_dev3.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binance_excel_saver/BinanceExcelSaver.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/binance_excel_saver/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/bt_binance_futures/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/bt_binance_futures/binance_broker.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/bt_binance_futures/binance_feed.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/bt_binance_futures/binance_store.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/data_manager/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/data_manager/data_managers.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/erun.sh" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/estop.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/HPO_BNC_FCS.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/HPO_results.txt" beforeDir="false" afterPath="$PROJECT_DIR$/HPO_results.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/LIVE_BNC_FCS.py" beforeDir="false" afterPath="$PROJECT_DIR$/archive_codes/LIVE_BNC.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/MONITOR.py" beforeDir="false" afterPath="$PROJECT_DIR$/MONITOR.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/RSI_Strategy.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/RSI_Strategy_dev.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/RSI_Strategy_dev3.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/TRADE_SERVER.py" beforeDir="false" afterPath="$PROJECT_DIR$/archive_codes/TRADE_SERVER.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fcsrun.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/install_env.py" beforeDir="false" afterPath="$PROJECT_DIR$/einstall_env.py" afterDir="false" />
-    </list>
+    <list default="true" id="b2ba4198-8589-47d6-a08c-50b13e12d621" name="Changes" comment="Binance Futures broker&#10;HPO&#10;LIVE Trade (external server)&#10;Monitor for external server&#10;Ver1.0" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -168,7 +141,15 @@
       <option name="project" value="LOCAL" />
       <updated>1713770641120</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Binance Futures broker&#10;HPO&#10;LIVE Trade (external server)&#10;Monitor for external server&#10;Ver1.0">
+      <option name="closed" value="true" />
+      <created>1717964320952</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1717964320952</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -176,6 +157,7 @@
     <MESSAGE value="HPO and LIVE and Strategy separated" />
     <MESSAGE value="First setiing" />
     <MESSAGE value="Monitor and Tradeserver separated, we can run it inexternal server." />
-    <option name="LAST_COMMIT_MESSAGE" value="Monitor and Tradeserver separated, we can run it inexternal server." />
+    <MESSAGE value="Binance Futures broker&#10;HPO&#10;LIVE Trade (external server)&#10;Monitor for external server&#10;Ver1.0" />
+    <option name="LAST_COMMIT_MESSAGE" value="Binance Futures broker&#10;HPO&#10;LIVE Trade (external server)&#10;Monitor for external server&#10;Ver1.0" />
   </component>
 </project>
