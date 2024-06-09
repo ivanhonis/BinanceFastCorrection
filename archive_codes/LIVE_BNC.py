@@ -1,12 +1,8 @@
 # Regular
 import datetime
-import sys
 import requests
 import pickle
 import time
-import os
-import random
-import itertools
 import json
 from tqdm.auto import tqdm
 import datetime as dt
@@ -27,7 +23,6 @@ import numpy as np
 # matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-import matplotlib as mpl
 import seaborn as sns
 
 # Data transfer
@@ -38,7 +33,7 @@ import os
 # from RSI_Strategy import RSIStrategy
 # from RSI_Strategy_dev import RSIStrategy
 from RSI_Strategy_dev2 import RSIStrategy
-from RSI_Strategy_dev3 import RSIStrategy
+from archive_codes.RSI_Strategy_dev3 import RSIStrategy
 
 
 def get_api_key():
@@ -49,7 +44,7 @@ def get_api_key():
     #     "secure_key": "yyyyy"
     # }
 
-    json_file_path = 'api_acces_key.json'
+    json_file_path = '../api_acces_key.json'
     with open(json_file_path, 'r') as file:
         keys = json.load(file)
 
@@ -260,7 +255,7 @@ class Monitor:
     def load_data(self):
         print("data readin threat start")
         while True:
-            self.data = self.pickle_loader('data_transfer_for_process.pickle')
+            self.data = self.pickle_loader('../data_transfer_for_process.pickle')
             self.open = np.array(self.data['open'], dtype=float)[::-1]
             self.high = np.array(self.data['high'], dtype=float)[::-1]
             self.low = np.array(self.data['low'], dtype=float)[::-1]

@@ -41,20 +41,51 @@ class Monitor:
     def __init__(self, external_server=False):
         self.external_server = external_server
         self.data = {}
-        self.open = np.array([])
-        self.high = np.array([])
-        self.low = np.array([])
-        self.close = np.array([])
-        self.rsi = np.array([])
-        self.rsi_over_sold = np.array([])
-        self.rsi_over_bought = np.array([])
-        self.decision = np.array([])
+        self.symbols = {}
+
+        # 'open_history': tuple(self.open_history),
+        # 'high_history': tuple(self.high_history),
+        # 'low_history': tuple(self.low_history),
+        # 'close_history': tuple(self.close_history),
+        #
+        # 'ema_fast_long_data_history': tuple(self.ema_fast_long_data_history),
+        # 'ema_fast_long_down_shift_data_history': tuple(self.ema_fast_long_down_shift_data_history),
+        # 'ema_slow_long_data_history': tuple(self.ema_slow_long_data_history),
+        #
+        # 'ema_fast_short_data_history': tuple(self.ema_fast_short_data_history),
+        # 'ema_fast_short_up_shift_data_history': tuple(self.ema_fast_short_up_shift_data_history),
+        # 'ema_slow_short_data_history': tuple(self.ema_slow_short_data_history),
+
+        self.open_history = {}
+        self.high_history = {}
+        self.low_history = {}
+        self.close_history = {}
+
+        self.ema_fast_long_data_history = {}
+        self.ema_fast_long_down_shift_data_history = {}
+        self.ema_slow_long_data_history = {}
+
+        self.ema_fast_short_data_history = {}
+        self.ema_fast_short_up_shift_data_history = {}
+        self.ema_slow_short_data_history = {}
+
+        self.decision = {}
         self.meta = {}
 
-        self.p = {0: {}}
-        self.anim_speed = 1000 * 30
-        self.last_plotted_close = np.array([0]*120)
+        self.p = {}
+        for i in range(6):
+            self.p[i] = {}
+
+        self.anim_speed = 1000 * 10
+
+        self.last_plotted_close = {}
+        for i in range(6):
+            self.last_plotted_close[i] = np.array([0]*700)
+
         self.xaxis = np.array([])
+        self.zoom_xaxis = np.array([])
+        self.zoom = 300
+
         self.time_period = 0
         self.is_load_data_run = True
 
@@ -71,10 +102,10 @@ class Monitor:
 
     @staticmethod
     def download_file_sftp():
-        hostname = "167.179.110.126"
+        hostname = "202.182.111.65"
         port = 22
         username = "root"
-        password = "fJ2{J3AAS4LCM.Dn"
+        password = "b$8JeBFfhL5F.9JR"
         remote_filepath = "data_transfer_for_process.pickle"
         local_filepath = "data_transfer_for_process.pickle"
         max_attempts = 4
@@ -127,85 +158,129 @@ class Monitor:
                 self.download_file_sftp()
             self.data = self.pickle_loader('data_transfer_for_process.pickle')
 
-            self.open = np.array(self.data['open'], dtype=float)[::-1]
-            self.high = np.array(self.data['high'], dtype=float)[::-1]
-            self.low = np.array(self.data['low'], dtype=float)[::-1]
-            self.close = np.array(self.data['close'], dtype=float)[::-1]
-            self.rsi = np.array(self.data['rsi'], dtype=float)[::-1]
-            self.rsi_over_sold = np.array(self.data['rsi_over_sold'], dtype=float)[::-1]
-            self.rsi_over_bought = np.array(self.data['rsi_over_bought'], dtype=float)[::-1]
-            self.decision = np.array(self.data['decision'], dtype=int)
-            self.time_period = len(self.close)
-            self.meta = self.data['meta']
+            # print(self.data)
+            # time.sleep(15)
+            # continue
 
-            # print(self.open)
-            # print(self.high)
-            # print(self.low)
-            # print(self.close)
-            # print(self.meta)
-            time.sleep(60)
+            data_no = {"ETHUSDT": 0,
+                       "BTCUSDT": 1,
+                       "AVAXUSDT": 2,
+                       "BNBUSDT": 3,
+                       }
+
+            for dk in self.data:
+                x = data_no[self.data[dk]['symbol']]
+                if dk != "meta":
+                    d = self.data[dk]
+
+                    # 'open_history': tuple(self.open_history),
+                    # 'high_history': tuple(self.high_history),
+                    # 'low_history': tuple(self.low_history),
+                    # 'close_history': tuple(self.close_history),
+                    #
+                    # 'ema_fast_long_data_history': tuple(self.ema_fast_long_data_history),
+                    # 'ema_fast_long_down_shift_data_history': tuple(self.ema_fast_long_down_shift_data_history),
+                    # 'ema_slow_long_data_history': tuple(self.ema_slow_long_data_history),
+                    #
+                    # 'ema_fast_short_data_history': tuple(self.ema_fast_short_data_history),
+                    # 'ema_fast_short_up_shift_data_history': tuple(self.ema_fast_short_up_shift_data_history),
+                    # 'ema_slow_short_data_history': tuple(self.ema_slow_short_data_history),
+
+                    self.symbols[x] = d['symbol']
+                    self.open_history[x] = np.array(d['open_history'], dtype=float)[::-1]
+                    self.high_history[x] = np.array(d['high_history'], dtype=float)[::-1]
+                    self.low_history[x] = np.array(d['low_history'], dtype=float)[::-1]
+                    self.close_history[x] = np.array(d['close_history'], dtype=float)[::-1]
+                    self.ema_fast_long_data_history[x] = np.array(d['ema_fast_long_data_history'], dtype=float)[::-1]
+                    self.ema_fast_long_down_shift_data_history[x] = np.array(d['ema_fast_long_down_shift_data_history'], dtype=float)[::-1]
+                    self.ema_slow_long_data_history[x] = np.array(d['ema_slow_long_data_history'], dtype=float)[::-1]
+                    self.ema_fast_short_data_history[x] = np.array(d['ema_fast_short_data_history'], dtype=float)[::-1]
+                    self.ema_fast_short_up_shift_data_history[x] = np.array(d['ema_fast_short_up_shift_data_history'], dtype=float)[::-1]
+                    self.ema_slow_short_data_history[x] = np.array(d['ema_slow_short_data_history'], dtype=float)[::-1]
+                    self.decision[x] = np.array(d['decision'], dtype=int)[::-1]
+                    self.time_period = len(self.close_history[x])
+                self.meta[x] = self.data[dk]['meta']
+
+                # for xk in self.meta[x]:
+                #     if len(str(self.meta[x][xk])) > 200:
+                #         self.meta[x][xk] = str(self.meta[x][xk])[:200]
+                #         self.meta[x][str(xk)+"1"] = str(self.meta[x][xk])[200:]
+
+            for i in range(5*60):
+                time.sleep(1)
+                if not self.is_load_data_run:
+                    break
         print("Stop Monitor load data.")
+        sys.exit(0)
 
     def on_close(self, event):
-        print('exit')
+        plt.close('all')
         self.is_load_data_run = False
 
     def start_create_chart_thread(self):
         print('start_create_chart_thread')
         sns.set_theme(style="whitegrid", font_scale=.6)
-        time.sleep(20)
+        time.sleep(15)
 
-        # wm_geometry = ['+0+0',
-        #                '+1920+0',
-        #                '+0+1030',
-        #                '+1920+1030']
+        ani = [[], [], [], [], [], [], [], [], [], [], [], []]
+        wm_geometry = ['+0+0',
+                       '+1920+0',
+                       '+0+1030',
+                       '+1920+1030']
 
-        rows = 3
-        sid = 0
+        for sid in range(4):
+            rows = 4
+            # sid = 1
 
-        # self.xaxis = np.arange(0, self.time_period)
-        # self.xaxis = self.xaxis.reshape((-1, 1))
+            # self.xaxis = np.arange(0, self.time_period)
+            # self.xaxis = self.xaxis.reshape((-1, 1))
 
-        self.xaxis = np.array(range(self.time_period))
+            self.xaxis = np.array(range(self.time_period))
+            self.zoom_xaxis = np.array(range(self.zoom))
 
-        self.p[sid]['fig'], self.p[sid]['ax'] = plt.subplots(rows, 1,
-                                                             gridspec_kw={'height_ratios': [50, 20, 30]},
-                                                             figsize=(8, 4),
-                                                             num=sid)
+            self.p[sid]['fig'], self.p[sid]['ax'] = plt.subplots(rows, 1,
+                                                                 gridspec_kw={'height_ratios': [20, 50, 15, 20]},
+                                                                 figsize=(8.5, 4),
+                                                                 num=sid + 1)
 
-        self.p[sid]['fig'].canvas.mpl_connect('close_event', self.on_close)
+            self.p[sid]['fig'].canvas.mpl_connect('close_event', self.on_close)
 
-        self.p[sid]['ax11'] = self.p[sid]['fig'].add_subplot(rows, 1, 1)
-        self.p[sid]['ax12'] = self.p[sid]['fig'].add_subplot(rows, 1, 2)
-        self.p[sid]['ax14'] = self.p[sid]['fig'].add_subplot(rows, 1, 3)
+            self.p[sid]['ax11'] = self.p[sid]['fig'].add_subplot(rows, 1, 1)
+            self.p[sid]['ax12'] = self.p[sid]['fig'].add_subplot(rows, 1, 2)
+            self.p[sid]['ax13'] = self.p[sid]['fig'].add_subplot(rows, 1, 3)
+            self.p[sid]['ax14'] = self.p[sid]['fig'].add_subplot(rows, 1, 4)
 
-        plt.autoscale(False)
-        for axx in self.p[sid]['ax']:
-            axx.set_xticks([])
-            axx.set_yticks([])
-            axx.get_yaxis().set_visible(False)
-            axx.xaxis.set_major_formatter(plt.NullFormatter())
-            axx.spines['bottom'].set_visible(False)
+            plt.autoscale(False)
+            for axx in self.p[sid]['ax']:
+                axx.set_xticks([])
+                axx.set_yticks([])
+                axx.get_yaxis().set_visible(False)
+                axx.xaxis.set_major_formatter(plt.NullFormatter())
+                axx.spines['bottom'].set_visible(False)
 
-        plt.subplots_adjust(left=0.06, right=1, top=1, bottom=0, hspace=-0.01, wspace=0.01)
-        ani = animation.FuncAnimation(self.p[sid]['fig'], self.animate_plot,
-                                      interval=self.anim_speed,
-                                      fargs=(sid,),
-                                      cache_frame_data=False)
-        self.p[sid]['fig'].canvas.manager.window.wm_geometry('+0+0')
+            plt.subplots_adjust(left=0.06, right=1, top=1, bottom=0, hspace=-0.01, wspace=0.01)
+            ani[sid] = animation.FuncAnimation(self.p[sid]['fig'], self.animate_plot,
+                                          interval=self.anim_speed,
+                                          fargs=(sid,),
+                                          cache_frame_data=False)
+            self.p[sid]['fig'].canvas.manager.window.wm_geometry(wm_geometry[sid])
+            # plt.tight_layout(pad=0.2, h_pad=0.2, w_pad=0.2)
         plt.show()
 
     def animate_plot(self, i, sid):
-        if not np.all(self.last_plotted_close == self.close):
+        # print(np.equal(self.low_history[sid], self.high_history[sid]))
+        if np.all(np.equal(self.low_history[sid], self.high_history[sid])):
+            return
 
+        if not np.all(self.last_plotted_close[sid] == self.close_history[sid]):
             fig = plt.gcf()
             size = fig.get_size_inches() * fig.dpi  # size in pixels
             if size[0] < 1910:
                 fsize = 7.85
             else:
-                fsize = 14.2
+                fsize = 10.5
 
-            self.p[sid]['fig'].canvas.manager.set_window_title("Monitor - Binance Fast Correction")
+            self.p[sid]['fig'].canvas.manager.set_window_title("Monitor - Binance ESM    " + self.symbols[sid])
 
             # TEXT
             self.p[sid]['ax14'].clear()
@@ -216,37 +291,37 @@ class Monitor:
 
             self.meta['0'] = "Local time:" + str(datetime.datetime.now().strftime("%Y. %m. %d. %H:%M:%S"))
 
-            for i, key in enumerate(self.meta):
+            for i, key in enumerate(self.meta[sid]):
                 # print(i, key, self.meta[key])
-                self.p[sid]['ax14'].text(0.009, 0.14 * (i - 1) + 0.8, self.meta[key], style='normal', fontsize=fsize, color="#000000")
+                self.p[sid]['ax14'].text(0.009, 0.12 * (i - 1) + 0.2, self.meta[sid][key], style='normal', fontsize=fsize, color="#000000")
 
             # chart
             self.p[sid]['ax11'].clear()
             self.p[sid]['ax11'].margins(x=0)
             self.p[sid]['ax11'].xaxis.set_major_formatter(plt.NullFormatter())
-            self.p[sid]['ylim_min'] = min(self.low) - 5
-            self.p[sid]['ylim_max'] = max(self.high) + 5
+            self.p[sid]['ylim_min'] = min(self.low_history[sid])
+            self.p[sid]['ylim_max'] = max(self.high_history[sid])
 
             self.p[sid]['ax11'].set_ylim([self.p[sid]['ylim_min'], self.p[sid]['ylim_max']])
             self.p[sid]['ax11'].ticklabel_format(axis='y', style='sci', useOffset=False)
             self.p[sid]['ax11'].xaxis.set_ticks(np.arange(0, self.time_period, 5000))
-            self.p[sid]['ax11'].set_facecolor('#efefef')
+            self.p[sid]['ax11'].set_facecolor('#ffffff')
 
             color = np.array([''] * self.time_period)
-            color_mask_up = np.where(self.close >= self.open)[0]
-            color_mask_down = np.where(self.close < self.open)[0]
+            color_mask_up = np.where(self.close_history[sid] >= self.open_history[sid])[0]
+            color_mask_down = np.where(self.close_history[sid] < self.open_history[sid])[0]
             color[color_mask_up] = "green"
             color[color_mask_down] = "red"
 
-            self.p[sid]['ax11'].bar(self.xaxis, bottom=self.open,
-                                    height=(self.close - self.open),
+            self.p[sid]['ax11'].bar(self.xaxis, bottom=self.open_history[sid],
+                                    height=(self.close_history[sid] - self.open_history[sid]),
                                     width=1,
                                     color=color,
                                     align='edge',
                                     edgecolor='none')
 
-            self.p[sid]['ax11'].bar(self.xaxis + .45, bottom=self.low,
-                                    height=(self.high - self.low),
+            self.p[sid]['ax11'].bar(self.xaxis + .45, bottom=self.low_history[sid],
+                                    height=(self.high_history[sid] - self.low_history[sid]),
                                     width=0.1,
                                     color=color,
                                     align='edge',
@@ -254,32 +329,32 @@ class Monitor:
 
             # BUY
             mark_array = np.array([np.nan] * abs(self.time_period))
-            buy_mask = np.where(self.decision == 1)[0]
-            mark_array[buy_mask] = self.low[buy_mask]
+            buy_mask = np.where(self.decision[sid] == 1)[0]
+            mark_array[buy_mask] = self.low_history[sid][buy_mask]
             self.p[sid]['ax11'].plot(self.xaxis + .5, mark_array, color="blue",
                                      marker=(3, 0, 0),
                                      markersize=10,
                                      linestyle='None')
 
-            # Stop loss
+            # SELL
             mark_array = np.array([np.nan] * abs(self.time_period))
-            buy_mask = np.where(self.decision == 2)[0]
-            mark_array[buy_mask] = self.low[buy_mask]
+            buy_mask = np.where(self.decision[sid] == -1)[0]
+            mark_array[buy_mask] = self.low_history[sid][buy_mask]
             self.p[sid]['ax11'].plot(self.xaxis + .5, mark_array, color="orange",
                                      marker=(3, 0, 180),
                                      markersize=10,
                                      linestyle='None')
 
-            # Profit take
+            # CLOSE
             mark_array = np.array([np.nan] * abs(self.time_period))
-            buy_mask = np.where(self.decision == 3)[0]
-            mark_array[buy_mask] = self.low[buy_mask]
+            buy_mask = np.where(self.decision[sid] == 2)[0]
+            mark_array[buy_mask] = self.low_history[sid][buy_mask]
             self.p[sid]['ax11'].plot(self.xaxis + .5, mark_array, color="green",
                                      marker=(3, 0, 180),
                                      markersize=10,
                                      linestyle='None')
 
-            self.last_plotted_close = self.close
+            self.last_plotted_close[sid] = self.close_history[sid]
 
             # # self.p[sid]['ax11'].plot(self.xaxis, self.d[sid]['ma_history'], 'y-', alpha=0.9, linewidth=1, )
             # # self.p[sid]['ax11'].plot(self.xaxis, self.d[sid]['ma_history'], 'g-', alpha=0.9, linewidth=2, )
@@ -311,20 +386,83 @@ class Monitor:
             self.p[sid]['ax12'].clear()
             self.p[sid]['ax12'].margins(x=0)
             self.p[sid]['ax12'].xaxis.set_major_formatter(plt.NullFormatter())
-            # if len(self.d[sid]['best_bid_price_history'][self.zoom_part:][self.d[sid]['best_bid_price_history'][self.zoom_part:] > 0]) > 0:
-            #     self.d[sid]['ylim_min'] = np.min(self.d[sid]['best_bid_price_history'][self.zoom_part:][self.d[sid]['best_bid_price_history'][self.zoom_part:] > 0]) - 20
-            #     self.d[sid]['ylim_max'] = np.max(self.d[sid]['best_ask_price_history'][self.zoom_part:][self.d[sid]['best_ask_price_history'][self.zoom_part:] > 0]) + 20
-            #     # self.d[sid]['ylim_min'] = self.d[sid]['best_ask_price_history'][-1] - 100
-            #     # self.d[sid]['ylim_max'] = self.d[sid]['best_ask_price_history'][-1] + 100
-            # else:
-            #
-            self.p[sid]['ax12'].set_ylim(0, 100)
+            self.p[sid]['ax12'].set_facecolor('#e6fff2')
+
+            ylim_min1 = min([min(self.ema_fast_long_data_history[sid][-self.zoom:]),
+                            min(self.ema_slow_long_data_history[sid][-self.zoom:]),
+                            min(self.low_history[sid][-self.zoom:]),
+                            min(self.high_history[sid][-self.zoom:]),
+                            min(self.ema_fast_long_down_shift_data_history[sid][-self.zoom:])])
+
+            ylim_max1 = max([max(self.ema_fast_long_data_history[sid][-self.zoom:]),
+                            max(self.ema_slow_long_data_history[sid][-self.zoom:]),
+                            max(self.low_history[sid][-self.zoom:]),
+                            max(self.high_history[sid][-self.zoom:]),
+                            max(self.ema_fast_long_down_shift_data_history[sid][-self.zoom:])])
+
+            self.p[sid]['ax12'].set_ylim([ylim_min1, ylim_max1])
             self.p[sid]['ax12'].ticklabel_format(axis='y', style='sci', useOffset=False)
-            self.p[sid]['ax12'].xaxis.set_ticks(np.arange(0, len(self.xaxis), 1000))
+
+            self.p[sid]['ax12'].bar(self.zoom_xaxis, bottom=self.open_history[sid][-self.zoom:],
+                                    height=(self.close_history[sid][-self.zoom:] - self.open_history[sid][-self.zoom:]),
+                                    width=1,
+                                    color=color,
+                                    align='edge',
+                                    edgecolor='none')
+
+            self.p[sid]['ax12'].bar(self.zoom_xaxis + .45, bottom=self.low_history[sid][-self.zoom:],
+                                    height=(self.high_history[sid][-self.zoom:] - self.low_history[sid][-self.zoom:][-self.zoom:]),
+                                    width=0.1,
+                                    color=color,
+                                    align='edge',
+                                    edgecolor='none')
             #
-            self.p[sid]['ax12'].plot(self.xaxis, self.rsi, 'b-', alpha=0.6, linewidth=2)
-            self.p[sid]['ax12'].plot(self.xaxis, self.rsi_over_sold, 'r-', alpha=0.6, linewidth=1)
-            self.p[sid]['ax12'].plot(self.xaxis, self.rsi_over_bought, 'g-', alpha=0.6, linewidth=1)
+            self.p[sid]['ax12'].plot(self.zoom_xaxis, self.ema_fast_long_data_history[sid][-self.zoom:], 'g-', alpha=0.8, linewidth=1)
+            self.p[sid]['ax12'].plot(self.zoom_xaxis, self.ema_slow_long_data_history[sid][-self.zoom:], 'g-', alpha=0.8, linewidth=2)
+            self.p[sid]['ax12'].plot(self.zoom_xaxis, self.ema_fast_long_down_shift_data_history[sid][-self.zoom:], 'g--', alpha=0.8, linewidth=1)
+
+            self.p[sid]['ax13'].clear()
+            self.p[sid]['ax13'].margins(x=0)
+            self.p[sid]['ax13'].xaxis.set_major_formatter(plt.NullFormatter())
+            self.p[sid]['ax13'].set_facecolor('#ffe6e6')
+
+            ylim_min = min([min(self.ema_fast_short_data_history[sid][-self.zoom:]),
+                            min(self.ema_fast_short_data_history[sid][-self.zoom:]),
+                            min(self.low_history[sid][-self.zoom:]),
+                            min(self.high_history[sid][-self.zoom:]),
+                            min(self.ema_fast_short_up_shift_data_history[sid][-self.zoom:])])
+
+            ylim_max = max([max(self.ema_fast_short_data_history[sid][-self.zoom:]),
+                            max(self.ema_fast_short_data_history[sid][-self.zoom:]),
+                            max(self.low_history[sid][-self.zoom:]),
+                            max(self.high_history[sid][-self.zoom:]),
+                            max(self.ema_fast_short_up_shift_data_history[sid][-self.zoom:])])
+
+            self.p[sid]['ax13'].set_ylim([ylim_min, ylim_max])
+            self.p[sid]['ax13'].ticklabel_format(axis='y', style='sci', useOffset=False)
+
+            self.p[sid]['ax13'].bar(self.zoom_xaxis, bottom=self.open_history[sid][-self.zoom:],
+                                    height=(self.close_history[sid][-self.zoom:] - self.open_history[sid][-self.zoom:]),
+                                    width=1,
+                                    color=color,
+                                    align='edge',
+                                    edgecolor='none')
+
+            self.p[sid]['ax13'].bar(self.zoom_xaxis + .45, bottom=self.low_history[sid][-self.zoom:],
+                                    height=(self.high_history[sid][-self.zoom:] - self.low_history[sid][-self.zoom:][-self.zoom:]),
+                                    width=0.1,
+                                    color=color,
+                                    align='edge',
+                                    edgecolor='none')
+
+            self.p[sid]['ax13'].plot(self.zoom_xaxis, self.ema_fast_short_data_history[sid][-self.zoom:], 'r-', alpha=0.8, linewidth=1)
+            self.p[sid]['ax13'].plot(self.ema_fast_short_data_history[sid][-self.zoom:], 'r-', alpha=0.8, linewidth=2)
+            self.p[sid]['ax13'].plot(self.zoom_xaxis, self.ema_fast_short_up_shift_data_history[sid][-self.zoom:], 'r--', alpha=0.8, linewidth=1)
+
+
+            #
+            if not self.is_load_data_run:
+                sys.exit(0)
             # self.p[sid]['ax12'].plot(self.xaxis, self.d[sid]['best_bid_price_history'][self.zoom_part:], 'r-', alpha=0.6, linewidth=1, )
             #
             # mid_price = (self.d[sid]['best_bid_price_history'][self.zoom_part:] + self.d[sid]['best_ask_price_history'][self.zoom_part:]) / 2
