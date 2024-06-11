@@ -31,7 +31,7 @@ from types import SimpleNamespace
 
 from numba import jit
 
-from data_manager import yahoo_download, df_check, binance_download
+from bt_tools import yahoo_download, df_check, binance_download
 
 # matplotlib
 # import matplotlib.pyplot as plt

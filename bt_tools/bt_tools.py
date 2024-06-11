@@ -1,11 +1,28 @@
-import yfinance as yf
+# import yfinance as yf
 import pandas as pd
 import os
 from binance.client import Client
+import datetime
 
 
-def yahoo_download(symbol, from_dt, back_shift, refresh=False, interval='1h'):
-    return yf.download(symbol, start=from_dt, interval=interval, auto_adjust=True)
+class Logger:
+    def __init__(self, log_level=6, log_file='ESMLog.txt'):
+        self.log_level = log_level
+        self.log_file = log_file
+
+    def log(self, *texts, level=1, output_mode='screen'):
+        if level >= self.log_level:
+            timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            message = f"{timestamp} ->   {' '.join(map(str, texts))}"
+            if output_mode == 'screen':
+                print(message)
+            elif output_mode == 'text':
+                with open(self.log_file, 'a') as file:
+                    file.write(message + '\n')
+
+
+# def yahoo_download(symbol, from_dt, back_shift, refresh=False, interval='1h'):
+#     return yf.download(symbol, start=from_dt, interval=interval, auto_adjust=True)
 
 
 def df_check(df, del_duplicates=False):

@@ -9,11 +9,11 @@ import random
 import itertools
 import json
 from prettytable import PrettyTable
-from tqdm.auto import tqdm
+# from tqdm.auto import tqdm
 import datetime as dt
 from types import SimpleNamespace
 import asyncio
-
+import cProfile
 # binance
 from binance.client import Client
 
@@ -21,7 +21,7 @@ from binance.client import Client
 import backtrader as bt
 from bt_binance_futures import BinanceStore
 import backtrader.analyzers as btanalyzers
-# from data_manager import yahoo_download, df_check, binance_download
+# from bt_tools import yahoo_download, df_check, binance_download
 
 # Pandas and friends
 import pandas as pd
@@ -38,7 +38,10 @@ import os
 # from RSI_Strategy_dev3 import RSIStrategy, XSizer
 from EMA_Shift_Multi_Strategy import EmaShiftMultiStrategy
 from EMA_Shift_Multi_Strategy import ESMSizer
+from bt_tools import Logger
 
+logger = Logger()
+log = logger.log
 
 def get_api_key():
     # api_acces_key.json file is:
@@ -48,7 +51,7 @@ def get_api_key():
     #     "secure_key": "yyyyy"
     # }
 
-    json_file_path = 'api_acces_key.json'
+    json_file_path = 'tokens/api_acces_key.json'
     with open(json_file_path, 'r') as file:
         keys = json.load(file)
 
@@ -76,7 +79,7 @@ def get_public_ip():
         else:
             return "Could not obtain IP address"
     except Exception as e:
-        print(f"Error obtaining public IP address: {e}")
+        log(f"Error obtaining public IP address: {e}", level=10)
         return None
 
 
@@ -155,7 +158,7 @@ def get_futures_positions(client, is_print=False):
         ])
 
     if is_print:
-        print(table)
+        log("\n",table, level=10)
     return ret_position, ret_price, market_value
 
 
@@ -214,7 +217,7 @@ def get_asset_balance(client, asset, is_print=False):
                 ret_other[item['asset']] = float(item['availableBalance'])
 
     if is_print:
-        print(table)
+        log("\n", table, level=10)
     return ret_asset, ret_BNB, ret_other
 
 
@@ -224,13 +227,12 @@ def run_live_trade():
     client = Client(api_key, secure_key)
 
     USDT_asset, BNB_asset, other_asset = get_asset_balance(client, asset="USDT", is_print=True)
-    print("")
     start_position, start_price, market_value = get_futures_positions(client, is_print=True)
 
-    print("Warnings:")
+    log("Warnings:", level=10)
     if BNB_asset < 50:
-        print("   Not enough BNB for commission:", BNB_asset)
-    print("")
+        log("Not enough BNB for commission:", BNB_asset, level=10)
+    log("", level=10)
 
     quote = "USDT"
 
@@ -363,7 +365,7 @@ def run_live_trade():
     df_dict = {}
     for k in cc:
         c = cc[k]
-        print(f"Download: {c.base + c.quote} -  {from_dt}")
+        log(f"Download: {c.base + c.quote} -  {from_dt}", level=10)
 
         df_dict[k] = store.getdata(dataname=c.base + c.quote, timeframe=bt.TimeFrame.Minutes, compression=comression, start_date=from_dt,  LiveBars=True)
         cerebro.adddata(df_dict[k], name=k)
@@ -384,11 +386,13 @@ def run_live_trade():
     cerebro.addanalyzer(btanalyzers.SharpeRatio, _name="sharpe", riskfreerate=0.2)
     # cerebro.addanalyzer(btanalyzers.Transactions, _name="trans")
     # cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
-    print("Cerebro RUN")
+    log("Cerebro RUN", level=10)
+
     result = cerebro.run()
     return result
 
 
 if __name__ == "__main__":
-    print("Public IP (for Binance api)", get_public_ip())
-    run_live_trade()
+    log("Public IP (for Binance api)", get_public_ip())
+    cProfile.run('run_live_trade()')
+    # run_live_trade()

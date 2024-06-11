@@ -9,6 +9,7 @@ from backtrader.order import Order, OrderBase
 from backtrader.position import Position
 from binance.enums import *
 from binance_excel_saver import BinanceExcelSaver
+from bt_tools import Logger
 
 
 class BinanceOrder(OrderBase):
@@ -81,12 +82,14 @@ class BinanceBroker(BrokerBase):
 
         self._store = store
         self._store.binance_socket.start_futures_user_socket(self._handle_user_socket_message)
-
         self.binance_excel_saver = BinanceExcelSaver
 
-    def log(self, text, text2="", text3="", text4="", text5="", text6="", level=1):
-        if level > self.log_level:
-            print(text, text2, text3, text4, text5, text6)
+        self.logger = Logger()
+        self.log = self.logger.log
+
+    # def log(self, text, text2="", text3="", text4="", text5="", text6="", level=1):
+    #     if level > self.log_level:
+    #         print(text, text2, text3, text4, text5, text6)
 
     def start(self):
         self.startingcash = self.cash = self.getcash()  # Стартовые и текущие свободные средства по счету. Подписка на позиции для портфеля/биржи

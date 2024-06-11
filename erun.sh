@@ -14,7 +14,7 @@ if [ "$choice" = "y" ]; then
   echo --------------------------------------
   echo RUN TRADE_SERVER_FUTURES IN BACKGROUND
   echo --------------------------------------
-  nohup python3 TRADE_SERVER_FUTURES.py > output.log 2>&1 &
+  nohup python3 -u TRADE_SERVER_FUTURES.py > output.log 2>&1 &
 else
   echo --------------------------------------
   echo RUN FCS

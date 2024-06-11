@@ -106,8 +106,8 @@ class Monitor:
         port = 22
         username = "root"
         password = "b$8JeBFfhL5F.9JR"
-        remote_filepath = "data_transfer_for_process.pickle"
-        local_filepath = "data_transfer_for_process.pickle"
+        remote_filepath = "data_transfer/data_transfer_for_process.pickle"
+        local_filepath = "data_transfer/data_transfer_for_process.pickle"
         max_attempts = 4
 
         # Initialize the SSH client
@@ -156,7 +156,7 @@ class Monitor:
         while self.is_load_data_run:
             if self.external_server:
                 self.download_file_sftp()
-            self.data = self.pickle_loader('data_transfer_for_process.pickle')
+            self.data = self.pickle_loader('data_transfer/data_transfer_for_process.pickle')
 
             # print(self.data)
             # time.sleep(15)

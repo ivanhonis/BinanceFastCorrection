@@ -11,6 +11,7 @@ from requests.exceptions import ConnectTimeout, ConnectionError
 
 from .binance_broker import BinanceBroker
 from .binance_feed import BinanceData
+from bt_tools import Logger
 
 
 class BinanceStore(object):
@@ -57,7 +58,9 @@ class BinanceStore(object):
         self._data = None
         self._datas = {}
 
-        self.log_level = 10
+        self.logger = Logger()
+        self.log = self.logger.log
+        self.feed_delay = 0
 
     def _format_value(self, value, step):
         precision = step.find('1') - 1
@@ -246,6 +249,3 @@ class BinanceStore(object):
     def futures_symbol_ticker(self, symbol):
         return self.binance.futures_symbol_ticker(symbol=symbol)
 
-    def log(self, text, text2="", text3="", text4="", text5="", text6="", level=1):
-        if level > self.log_level:
-            print(text, text2, text3, text4, text5, text6)

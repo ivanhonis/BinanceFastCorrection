@@ -4,7 +4,24 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b2ba4198-8589-47d6-a08c-50b13e12d621" name="Changes" comment="Binance Futures broker&#10;HPO&#10;LIVE Trade (external server)&#10;Monitor for external server&#10;Ver1.0" />
+    <list default="true" id="b2ba4198-8589-47d6-a08c-50b13e12d621" name="Changes" comment="Binance Futures broker&#10;HPO&#10;LIVE Trade (external server)&#10;Monitor for external server&#10;Ver1.0">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/EMA_Shift_Multi_Strategy.py" beforeDir="false" afterPath="$PROJECT_DIR$/EMA_Shift_Multi_Strategy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/HPO_Multi.py" beforeDir="false" afterPath="$PROJECT_DIR$/HPO_Multi.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/HPO_results.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/MONITOR.py" beforeDir="false" afterPath="$PROJECT_DIR$/MONITOR.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TRADE_SERVER_FUTURES.py" beforeDir="false" afterPath="$PROJECT_DIR$/TRADE_SERVER_FUTURES.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/archive_codes/HPO.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/archive_codes/LIVE_BNC.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/archive_codes/RSI_Strategy_dev3.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/archive_codes/TRADE_SERVER.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/bt_binance_futures/binance_broker.py" beforeDir="false" afterPath="$PROJECT_DIR$/bt_binance_futures/binance_broker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bt_binance_futures/binance_feed.py" beforeDir="false" afterPath="$PROJECT_DIR$/bt_binance_futures/binance_feed.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bt_binance_futures/binance_store.py" beforeDir="false" afterPath="$PROJECT_DIR$/bt_binance_futures/binance_store.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data_manager/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/bt_tools/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data_manager/data_managers.py" beforeDir="false" afterPath="$PROJECT_DIR$/bt_tools/bt_tools.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/erun.sh" beforeDir="false" afterPath="$PROJECT_DIR$/erun.sh" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -37,47 +54,47 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_ADD_EXTERNAL_FILES": "true",
-    "Python.BinanceExcelSaver.executor": "Run",
-    "Python.Binance_fast_correction_strategy.executor": "Run",
-    "Python.EMA_Shift_Multi_Strategy.executor": "Run",
-    "Python.EMA_Shift_Strategy.executor": "Run",
-    "Python.Fast_Correction_Strategy.executor": "Run",
-    "Python.HPO_BNC_FCS.executor": "Run",
-    "Python.HPO_FCS.executor": "Run",
-    "Python.HPO_Multi.executor": "Run",
-    "Python.LIVE_BNC_FCS.executor": "Run",
-    "Python.MONITOR.executor": "Run",
-    "Python.MONITOR_FCS.executor": "Run",
-    "Python.RSI_Strategy.executor": "Run",
-    "Python.RSI_Strategy_dev.executor": "Run",
-    "Python.RSI_Strategy_dev3.executor": "Run",
-    "Python.TRADE_SERVER.executor": "Run",
-    "Python.TRADE_SERVER_CCXT.executor": "Run",
-    "Python.TRADE_SERVER_FUTURES.executor": "Run",
-    "Python.binance_broker.executor": "Run",
-    "Python.binance_feed.executor": "Run",
-    "Python.binance_store.executor": "Run",
-    "Python.ccxtbroker.executor": "Run",
-    "Python.ccxtstore.executor": "Run",
-    "Python.data_utils.executor": "Run",
-    "Python.monitor.executor": "Run",
-    "Python.popup.executor": "Run",
-    "Python.scratch.executor": "Run",
-    "Python.scratch_1.executor": "Run",
-    "Python.scratch_2.executor": "Run",
-    "Python.scratch_email.executor": "Run",
-    "Python.scratches6.executor": "Run",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "master",
-    "ignore.virus.scanning.warn.message": "true",
-    "last_opened_file_path": "D:/Devs/Projects/BinanceFastCorrection/BinanceExcelSaver",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
+    &quot;Python.BinanceExcelSaver.executor&quot;: &quot;Run&quot;,
+    &quot;Python.Binance_fast_correction_strategy.executor&quot;: &quot;Run&quot;,
+    &quot;Python.EMA_Shift_Multi_Strategy.executor&quot;: &quot;Run&quot;,
+    &quot;Python.EMA_Shift_Strategy.executor&quot;: &quot;Run&quot;,
+    &quot;Python.Fast_Correction_Strategy.executor&quot;: &quot;Run&quot;,
+    &quot;Python.HPO_BNC_FCS.executor&quot;: &quot;Run&quot;,
+    &quot;Python.HPO_FCS.executor&quot;: &quot;Run&quot;,
+    &quot;Python.HPO_Multi.executor&quot;: &quot;Run&quot;,
+    &quot;Python.LIVE_BNC_FCS.executor&quot;: &quot;Run&quot;,
+    &quot;Python.MONITOR.executor&quot;: &quot;Run&quot;,
+    &quot;Python.MONITOR_FCS.executor&quot;: &quot;Run&quot;,
+    &quot;Python.RSI_Strategy.executor&quot;: &quot;Run&quot;,
+    &quot;Python.RSI_Strategy_dev.executor&quot;: &quot;Run&quot;,
+    &quot;Python.RSI_Strategy_dev3.executor&quot;: &quot;Run&quot;,
+    &quot;Python.TRADE_SERVER.executor&quot;: &quot;Run&quot;,
+    &quot;Python.TRADE_SERVER_CCXT.executor&quot;: &quot;Run&quot;,
+    &quot;Python.TRADE_SERVER_FUTURES.executor&quot;: &quot;Run&quot;,
+    &quot;Python.binance_broker.executor&quot;: &quot;Run&quot;,
+    &quot;Python.binance_feed.executor&quot;: &quot;Run&quot;,
+    &quot;Python.binance_store.executor&quot;: &quot;Run&quot;,
+    &quot;Python.ccxtbroker.executor&quot;: &quot;Run&quot;,
+    &quot;Python.ccxtstore.executor&quot;: &quot;Run&quot;,
+    &quot;Python.data_utils.executor&quot;: &quot;Run&quot;,
+    &quot;Python.monitor.executor&quot;: &quot;Run&quot;,
+    &quot;Python.popup.executor&quot;: &quot;Run&quot;,
+    &quot;Python.scratch.executor&quot;: &quot;Run&quot;,
+    &quot;Python.scratch_1.executor&quot;: &quot;Run&quot;,
+    &quot;Python.scratch_2.executor&quot;: &quot;Run&quot;,
+    &quot;Python.scratch_email.executor&quot;: &quot;Run&quot;,
+    &quot;Python.scratches6.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Devs/Projects/BinanceFastCorrection/BinanceExcelSaver&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;reference.settingsdialog.IDE.editor.colors.General&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="D:\Devs\Projects\BinanceFastCorrection\BinanceExcelSaver" />
@@ -86,6 +103,9 @@
       <recent name="D:\Devs\Projects\BinanceFastCorrection" />
     </key>
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="D:\Devs\Projects\BinanceFastCorrection\hpo_results" />
+      <recent name="D:\Devs\Projects\BinanceFastCorrection\data_transfer" />
+      <recent name="D:\Devs\Projects\BinanceFastCorrection\tokens" />
       <recent name="D:\Devs\Projects\BinanceFastCorrection\archive_codes" />
       <recent name="D:\Devs\Projects\BinanceFastCorrection" />
     </key>
@@ -149,8 +169,27 @@
       <option name="project" value="LOCAL" />
       <updated>1717964320952</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Binance Futures broker&#10;HPO&#10;LIVE Trade (external server)&#10;Monitor for external server&#10;Ver1.0">
+      <option name="closed" value="true" />
+      <created>1717964524578</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1717964524578</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Backtrader fastcorrection strategy on binance" />

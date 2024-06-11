@@ -1,11 +1,11 @@
+import time
 from collections import deque
-
 import pandas as pd
-
 from backtrader.feed import DataBase
 from backtrader.utils import date2num
-
 from backtrader import TimeFrame as tf
+from bt_tools import Logger
+import inspect
 
 
 class BinanceData(DataBase):
@@ -31,7 +31,10 @@ class BinanceData(DataBase):
         if 'LiveBars' in kwargs: self.LiveBars = kwargs['LiveBars']
 
         self._store = store
+        self.feed_delay = 0
         self._data = deque()
+        self.logger = Logger()
+        self.log = self.logger.log
 
         # print("Ok", self.timeframe, self.compression, self.start_date, self._store, self.LiveBars, self.symbol)
 
@@ -72,6 +75,7 @@ class BinanceData(DataBase):
             if self._load_kline():
                 return True
             else:
+                # print("inkább innen _load")
                 self._start_live()
 
     def _load_kline(self):
@@ -128,12 +132,16 @@ class BinanceData(DataBase):
             self._state = self._ST_LIVE
             self.put_notification(self.LIVE)
 
-            print(f"  Live started for ticker: {self.symbol}")
+            self.log(f"Live started: {self.symbol}")
 
             self._store.binance_socket.start_kline_futures_socket(
                 self._handle_kline_socket_message,
                 self.symbol_info['symbol'],
                 self.interval)
+
+            self.feed_delay = 0.01
+            self.log(f"Reduced processing speed. {self.feed_delay}", level=10)
+
         else:
             self._state = self._ST_OVER
         
@@ -182,3 +190,30 @@ class BinanceData(DataBase):
 
         else:
             self._start_live()
+
+    def get_notifications(self):
+
+        # frame = inspect.currentframe()
+        # caller_frame = frame.f_back
+        #
+        # # Extract caller information
+        # caller_name = caller_frame.f_code.co_name
+        # caller_file = caller_frame.f_code.co_filename
+        # caller_line = caller_frame.f_lineno
+        #
+        # # Return a string with caller details
+        # print( f'{caller_name} in {caller_file} at line {caller_line}')
+        time.sleep(self.feed_delay)
+
+        '''Return the pending "store" notifications'''
+        # The background thread could keep on adding notifications. The None
+        # mark allows to identify which is the last notification to deliver
+        self.notifs.append(None)  # put a mark
+        notifs = list()
+        while True:
+            notif = self.notifs.popleft()
+            if notif is None:  # mark is reached
+                break
+            notifs.append(notif)
+
+        return notifs

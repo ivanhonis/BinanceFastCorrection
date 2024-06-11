@@ -4,27 +4,19 @@ import os
 import json
 
 import requests
-# from collections import deque
 import backtrader as bt
 from backtrader.utils import date2num, num2date
 import pickle
 from datetime import datetime
 from types import SimpleNamespace
 import threading
-# from copy import deepcopy
 
 import numpy as np
 import math
-# import ta as ta
-# import pandas as pd
-# import pandas_ta as ta
-# from joblib import dump, load
-# from numba import jit
-# import yfinance as yf
 import pprint
 from binance.helpers import round_step_size
 from binance import Client
-
+from bt_tools import Logger
 
 class CollectData:
 
@@ -62,6 +54,9 @@ class CollectData:
         self.decision = np.full(length, 0, dtype=np.int8)
         self.meta = {}
         self.is_live_run = is_live_run
+
+        self.logger = Logger()
+        self.log = self.logger.log
 
     @staticmethod
     def s_round(value):
@@ -169,16 +164,12 @@ class ESMSizer(bt.Sizer):
         for sy in self.symbols:
             self.symbols_position[sy] = 0.0
 
-        self.log_level = 1
-
-    def log(self, text, text2="", text3="", text4="", text5="", text6="", level=1):
-        if level > self.log_level:
-            print(text, text2, text3, text4, text5, text6)
+        self.logger = Logger()
+        self.log = self.logger.log
 
     def start(self):
-        self.log_level = self.strategy.log_level
         for symbol in self.symbols:
-            self.log(f"  Get symbol market info: {symbol}", level=10)
+            self.log(f"Get market info: {symbol}", level=10)
             if self.is_live_run:
                 self.symbol_info[symbol] = self.broker.futures_symbol_info(symbol)
             else:
@@ -384,7 +375,8 @@ class EmaShiftMultiStrategy(bt.Strategy):
         self.start_price = start_price
         self.is_live_run = is_live_run
 
-        self.log_level = 4
+        self.logger = Logger()
+        self.log = self.logger.log
 
         api_key, secure_key = self.get_api_key()
         self.bclient = Client(api_key, secure_key, requests_params={'timeout': (10, 20)})
@@ -463,7 +455,7 @@ class EmaShiftMultiStrategy(bt.Strategy):
             self.leverage = 1
             for data in self.datas:
                 dn = data._name
-                print(f"  Get symbol leverage: {dn} {self.leverage}")
+                self.log(f"Get symbol leverage: {dn} {self.leverage}")
                 self.broker.set_leverage(dn, self.leverage)
 
         self.start_data_threads()
@@ -476,7 +468,7 @@ class EmaShiftMultiStrategy(bt.Strategy):
         #     "secure_key": "yyyyy"
         # }
 
-        json_file_path = 'api_acces_key.json'
+        json_file_path = 'tokens/api_acces_key.json'
         with open(json_file_path, 'r') as file:
             keys = json.load(file)
 
@@ -489,7 +481,7 @@ class EmaShiftMultiStrategy(bt.Strategy):
         if self.is_live_run:
             thread1 = threading.Thread(target=self.save_data_loop)
             thread1.start()
-            self.log(f"  Data saver started: data_transfer_for_process.pickle", level=10)
+            self.log(f"Data saver started: data_transfer_for_process.pickle", level=10)
             # thread1.join()
 
     def save_keys(self):
@@ -502,7 +494,7 @@ class EmaShiftMultiStrategy(bt.Strategy):
         time.sleep(60)
         while True:
             self.save_keys()
-            time.sleep(60*15)
+            time.sleep(60*3)
 
     def save_dict(self, dict, file_path='data_transfer_for_process.pickle'):
         try:
@@ -519,7 +511,6 @@ class EmaShiftMultiStrategy(bt.Strategy):
         else:
             self.bclient.futures_symbol_ticker(symbol=symbol)
 
-
     def print_object(self, obj):
         all_properties = dir(obj)
 
@@ -528,10 +519,6 @@ class EmaShiftMultiStrategy(bt.Strategy):
                 self.log(f"Method: {prop}", level=10)
             else:
                 self.log(f"Attribute: {prop}", level=10)
-
-    def log(self, text, text2="", text3="", text4="", text5="", text6="", level=1):
-        if level > self.log_level:
-            print(text, text2, text3, text4, text5, text6)
 
     def start(self):
         if self.is_live_run:
@@ -863,7 +850,7 @@ class EmaShiftMultiStrategy(bt.Strategy):
         for ad in arrived_data:
             data = self.datas[ad]
             dn = data._name
-            self.log(f"Market data recieved: {data.datatime[0]} {dn}, {data.close[0]}", level=5)
+            self.log(f"Market data recieved: {num2date(data.datetime[0])} {dn}, {data.close[0]}", level=5)
             c = self.cc[dn]
             # if ad == 0:
             #     print("next", dn, num2date(data.datetime[0]), data.close[0])
@@ -905,7 +892,7 @@ class EmaShiftMultiStrategy(bt.Strategy):
 
             # Strategy trade
             rsrc = self.rsrc(data)
-
+            # continue
             if not self.is_live_data():
                 continue
             # TRADE -------------------------------------------------------------------------------
