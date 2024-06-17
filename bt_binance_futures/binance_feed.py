@@ -22,7 +22,6 @@ class BinanceData(DataBase):
         self.compression = 1
         self.start_date = None
         self.LiveBars = None
-
         self.symbol = self.p.dataname
 
         if hasattr(self.p, 'timeframe'): self.timeframe = self.p.timeframe
@@ -33,16 +32,25 @@ class BinanceData(DataBase):
         self._store = store
         self.feed_delay = 0
         self._data = deque()
+
         self.logger = Logger()
         self.log = self.logger.log
+        self.set_life_signal = self._store.set_life_signal
 
         # print("Ok", self.timeframe, self.compression, self.start_date, self._store, self.LiveBars, self.symbol)
 
     def _handle_kline_socket_message(self, msg):
+        self.set_life_signal(key="BinanceData1" + str(self.symbol),
+                             cclass="BinanceData",
+                             method="_handle_kline_socket_message",
+                             msg1=str(self.symbol),
+                             msg2=str(msg['e']),
+                             msg3=""
+                             )
+
         """https://binance-docs.github.io/apidocs/spot/en/#kline-candlestick-streams"""
         if msg['e'] == 'continuous_kline':
             if msg['k']['x']:  # Is closed
-                # print("Closed " *10)
                 # {'t': 1717606380000,
                 # 'T': 1717606439999,
                 # 'i': '1m',
@@ -203,6 +211,13 @@ class BinanceData(DataBase):
         #
         # # Return a string with caller details
         # print( f'{caller_name} in {caller_file} at line {caller_line}')
+        self.set_life_signal(key="BinanceDataloop",
+                             cclass="BinanceData",
+                             method="get_notifications",
+                             msg1="Cerebro loop",
+                             msg2="",
+                             msg3=""
+                             )
         time.sleep(self.feed_delay)
 
         '''Return the pending "store" notifications'''

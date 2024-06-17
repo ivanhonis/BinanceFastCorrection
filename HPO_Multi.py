@@ -31,7 +31,7 @@ from types import SimpleNamespace
 
 from numba import jit
 
-from bt_tools import yahoo_download, df_check, binance_download
+from bt_tools import df_check, binance_download
 
 # matplotlib
 # import matplotlib.pyplot as plt
@@ -409,13 +409,13 @@ if __name__ == "__main__":
 
         # from_dt = dt.datetime(year=2017, month=8, day=17, hour=0, minute=0)
         # cutoff_dt = dt.datetime(year=2022, month=1, day=1, hour=0, minute=0)
-        from_dt = dt.datetime(year=2022, month=1, day=1, hour=0, minute=0)
+        # from_dt = dt.datetime(year=2022, month=1, day=1, hour=0, minute=0)
         # from_dt = dt.datetime(year=2023, month=1, day=1, hour=0, minute=0)
-        # from_dt = dt.datetime(year=2024, month=5, day=1, hour=0, minute=0)
+        from_dt = dt.datetime(year=2024, month=1, day=1, hour=0, minute=0)
         cutoff_dt = None
-        # interval = "5m"
+        interval = "15m"
         # interval = "1m"
-        interval = "1h"
+        # interval = "1h"
 
         processors_use = 14
         arrays, settings_name, total_combinations = parmeter_combinations(processors_use)

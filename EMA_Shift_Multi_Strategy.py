@@ -11,16 +11,26 @@ from datetime import datetime
 from types import SimpleNamespace
 import threading
 
+import pandas as pd
 import numpy as np
 import math
 import pprint
 from binance.helpers import round_step_size
 from binance import Client
-from bt_tools import Logger
+from bt_tools import Logger, TaskScheduler, GoogleDriveConnect, get_asset_balance, get_futures_positions
+from binance_excel_saver import BinanceExcelSaver
+from candlestick_chart import CandlestickChart
+
 
 class CollectData:
 
-    def __init__(self, length, is_live_run, init_price=69250.0, worker_no=0, symbol="", total_data_len=100000):
+    def __init__(self, length, is_live_run,
+                 init_price=69250.0,
+                 worker_no=0,
+                 symbol="",
+                 total_data_len=100000,
+                 set_life_signal=object):
+
         self.symbol = symbol
         self.length = length
         self.worker_no = worker_no
@@ -57,6 +67,8 @@ class CollectData:
 
         self.logger = Logger()
         self.log = self.logger.log
+        if self.is_live_run:
+            self.set_life_signal = set_life_signal
 
     @staticmethod
     def s_round(value):
@@ -72,12 +84,19 @@ class CollectData:
         array[0] = self.s_round(data)
 
     def add_signal(self, long_signal, short_signal):
-
         long_signal = int(long_signal)
         short_signal = int(short_signal)
 
         self.add_que(self.long_signal, long_signal)
         self.add_que(self.short_signal, short_signal)
+        if self.is_live_run:
+            self.set_life_signal(key="CollectData_1" + str(self.symbol),
+                                 cclass="CollectData",
+                                 method="add_signal",
+                                 msg1=str(self.symbol),
+                                 msg2="",
+                                 msg3=""
+                                 )
 
     def add_data(self, data,
                  ema_fast_long_data,
@@ -110,6 +129,14 @@ class CollectData:
         self.close = round(float(data.close[0]), 1)
 
         self.add_que(self.decision, int(0))
+        if self.is_live_run:
+            self.set_life_signal(key="CollectData_2" + str(self.symbol),
+                                 cclass="CollectData",
+                                 method="add_data",
+                                 msg1=str(self.symbol),
+                                 msg2="",
+                                 msg3=""
+                                 )
 
     def add_meta(self, field, value):
         if self.is_live_run:
@@ -166,20 +193,23 @@ class ESMSizer(bt.Sizer):
 
         self.logger = Logger()
         self.log = self.logger.log
+        if self.is_live_run:
+            self.set_life_signal = object
 
     def start(self):
-        for symbol in self.symbols:
-            self.log(f"Get market info: {symbol}", level=10)
-            if self.is_live_run:
-                self.symbol_info[symbol] = self.broker.futures_symbol_info(symbol)
-            else:
-                self.symbol_info[symbol] = self.get_symbol_info(symbol)
-            filter_params = [f for f in self.symbol_info[symbol]['filters'] if f.get('filterType') == 'MARKET_LOT_SIZE'][0]
-            self.min_qty[symbol] = float(filter_params.get('minQty', 0))
-            self.max_qty[symbol] = float(filter_params.get('maxQty', float('inf')))
-            self.step_size[symbol] = float(filter_params.get('stepSize', 1))
-            filter_params = [f for f in self.symbol_info[symbol]['filters'] if f.get('filterType') == 'MIN_NOTIONAL'][0]
-            self.min_notional[symbol] = float(filter_params.get('notional', 0))
+        if self.is_live_run:
+            for symbol in self.symbols:
+                self.log(f"Get market info: {symbol}", level=10)
+                if self.is_live_run:
+                    self.symbol_info[symbol] = self.broker.futures_symbol_info(symbol)
+                else:
+                    self.symbol_info[symbol] = self.get_symbol_info(symbol)
+                filter_params = [f for f in self.symbol_info[symbol]['filters'] if f.get('filterType') == 'MARKET_LOT_SIZE'][0]
+                self.min_qty[symbol] = float(filter_params.get('minQty', 0))
+                self.max_qty[symbol] = float(filter_params.get('maxQty', float('inf')))
+                self.step_size[symbol] = float(filter_params.get('stepSize', 1))
+                filter_params = [f for f in self.symbol_info[symbol]['filters'] if f.get('filterType') == 'MIN_NOTIONAL'][0]
+                self.min_notional[symbol] = float(filter_params.get('notional', 0))
 
     def get_symbol_info(self, ssymbol):
         # print(self.binance.get_symbol_info(symbol))
@@ -212,6 +242,9 @@ class ESMSizer(bt.Sizer):
         symbol = data._name
 
         if self.is_live_run:
+
+
+
             # ha van befejezetlen order akkor nem enged rányitni.
 
             save_pos = 0
@@ -311,23 +344,22 @@ class ESMSizer(bt.Sizer):
         # print(f"{data._name} {one_symbol_max_value} {data.close[0]}")
         # qty = ((one_symbol_max_value + self.strategy.symbol_profit[data._name]) / data.close[0]) - self.symbols_position[data._name]
         ori_size = round(qty, 8)
-        size = self.round_down_to_step(symbol, ori_size)
-
-        self.log(f"symbol                  {symbol}", level=1)
-        self.log(f"side                    {'Buy' if isbuy else 'Sell'}", level=1)
-        self.log(f"size                    {size}", level=1)
-        self.log(f"qty                     {qty}", level=1)
-        self.log(f"ori_size                {ori_size}", level=1)
-        self.log(f"max_long_position       {max_long_position}", level=1)
-        self.log(f"max_short_position      {max_short_position}", level=1)
-        self.log(f"stepsize                {self.step_size[symbol]}", level=1)
-        self.log(f"self.start_cash         {self.start_cash}", level=1)
-        self.log(f"max_value               {max_value} {round(max_value / self.start_cash * 100, 2)}", level=1)
-        self.log(f"one_symbol_max_value    {one_symbol_max_value}", level=1)
-        self.log(f"symbol_profit           {self.strategy.symbol_profit[symbol]}", level=1)
-        self.log(f"symbols_position        {self.symbols_position[symbol]}", level=1)
-
         if self.is_live_run:
+            size = self.round_down_to_step(symbol, ori_size)
+
+            self.log(f"symbol                  {symbol}", level=1)
+            self.log(f"side                    {'Buy' if isbuy else 'Sell'}", level=1)
+            self.log(f"size                    {size}", level=1)
+            self.log(f"qty                     {qty}", level=1)
+            self.log(f"ori_size                {ori_size}", level=1)
+            self.log(f"max_long_position       {max_long_position}", level=1)
+            self.log(f"max_short_position      {max_short_position}", level=1)
+            self.log(f"stepsize                {self.step_size[symbol]}", level=1)
+            self.log(f"self.start_cash         {self.start_cash}", level=1)
+            self.log(f"max_value               {max_value} {round(max_value / self.start_cash * 100, 2)}", level=1)
+            self.log(f"one_symbol_max_value    {one_symbol_max_value}", level=1)
+            self.log(f"symbol_profit           {self.strategy.symbol_profit[symbol]}", level=1)
+            self.log(f"symbols_position        {self.symbols_position[symbol]}", level=1)
 
             if size == 0:
                 print(f"Sizer: Trade failed {symbol} Size 0")
@@ -358,11 +390,22 @@ class ESMSizer(bt.Sizer):
         #       "values: ", size * data.close[0],
         #       )
 
+        if self.is_live_run:
+            self.set_life_signal(key="ESMSizer_1" + str(symbol),
+                                 cclass="ESMSizer",
+                                 method="_getsizing",
+                                 msg1=str(symbol),
+                                 msg2=str(ori_size),
+                                 msg3=str(size)
+                                 )
+
         return size
 
     def set(self, strategy, broker):
         self.strategy = strategy
         self.broker = broker
+        if self.is_live_run:
+            self.set_life_signal = self.broker.set_life_signal
         self.start()
 
 
@@ -377,6 +420,8 @@ class EmaShiftMultiStrategy(bt.Strategy):
 
         self.logger = Logger()
         self.log = self.logger.log
+        if self.is_live_run:
+            self.set_life_signal = self.broker.set_life_signal
 
         api_key, secure_key = self.get_api_key()
         self.bclient = Client(api_key, secure_key, requests_params={'timeout': (10, 20)})
@@ -449,18 +494,100 @@ class EmaShiftMultiStrategy(bt.Strategy):
                                       init_price=self.start_market_prices[dn],
                                       worker_no=self.cc[dn].worker_no,
                                       symbol=dn,
-                                      total_data_len=total_data_len + 10)
+                                      total_data_len=total_data_len + 10,
+                                      set_life_signal=self.set_life_signal if self.is_live_run else None
+                                      )
 
         if self.is_live_run:
+            self.chart = CandlestickChart()
             self.leverage = 1
             for data in self.datas:
                 dn = data._name
                 self.log(f"Get symbol leverage: {dn} {self.leverage}")
                 self.broker.set_leverage(dn, self.leverage)
 
-        self.start_data_threads()
+            self.binance_excel_saver = BinanceExcelSaver
 
-    def get_api_key(self):
+            self.gdc = GoogleDriveConnect()
+            now = datetime.now()
+            self.tasks = []
+            for i in range(0, 24):
+                for j in [5, 15, 25, 35, 45, 55]:
+                    self.tasks.append(
+                        [datetime(now.year, now.month, now.day, hour=i, minute=j), self.scheduled_life_signals]
+                    )
+                self.tasks.append(
+                    [datetime(now.year, now.month, now.day, hour=i, minute=2), self.scheduled_account_info]
+                )
+
+            # self.tasks.append(
+            #     [datetime(now.year, now.month, now.day, hour=now.hour, minute=now.minute + 1), self.scheduled_life_signals]
+            # )
+            # self.tasks.append(
+            #     [datetime(now.year, now.month, now.day, hour=now.hour, minute=now.minute + 2), self.scheduled_account_info]
+            # )
+
+            self.scheduler = TaskScheduler(self.tasks, set_life_signal=self.set_life_signal)
+            self.scheduler.start()
+
+    def scheduled_life_signals(self):
+        self.broker.save_life_signals()
+        self.gdc.delete_file_in_folder(file_name='life_signals.txt')
+        self.gdc.upload_file(file_name='/data_transfer/life_signals.txt')
+
+    def scheduled_account_info(self):
+        self.save_collected_data()
+
+        ret_array_balance = get_asset_balance(self.bclient, asset="USDT", is_print=False, is_return_array=True)
+        ret_array_position = get_futures_positions(self.bclient, is_print=False, is_return_array=True)
+
+        self.binance_excel_saver.save_balance_data(ret_array_balance)
+        self.binance_excel_saver.save_positions_data(ret_array_position)
+
+        self.gdc.delete_file_in_folder(file_name='ESM_settlement.xlsx')
+        self.gdc.upload_file(file_name='/data_transfer/ESM_settlement.xlsx')
+
+        for cd_key in self.cd:
+            fn0, fn1 = self.create_chart(cd_key, self.cc[cd_key])
+
+            self.gdc.delete_file_in_folder(file_name=fn0)
+            self.gdc.upload_file(file_name='/data_transfer/' + fn0)
+
+            self.gdc.delete_file_in_folder(file_name=fn1)
+            self.gdc.upload_file(file_name='/data_transfer/' + fn1)
+
+    def create_chart(self, dn, c):
+        df = pd.DataFrame({
+            'open_history': self.cd[dn].open_history[::-1],
+            'high_history': self.cd[dn].high_history[::-1],
+            'low_history': self.cd[dn].low_history[::-1],
+            'close_history': self.cd[dn].close_history[::-1],
+            'ema_fast_long_data_history': self.cd[dn].ema_fast_long_data_history[::-1],
+            'ema_fast_long_down_shift_data_history': self.cd[dn].ema_fast_long_down_shift_data_history[::-1],
+            'ema_slow_long_data_history': self.cd[dn].ema_slow_long_data_history[::-1],
+            'ema_fast_short_data_history': self.cd[dn].ema_fast_short_data_history[::-1],
+            'ema_fast_short_up_shift_data_history': self.cd[dn].ema_fast_short_up_shift_data_history[::-1],
+            'ema_slow_short_data_history': self.cd[dn].ema_slow_short_data_history[::-1],
+        })
+
+        df0 = df.tail(500)
+        df0.index = range(0, 500)
+        self.chart.add(df0, dn + " PERPETUAL")
+        self.chart.add_config(c)
+        filename0 = "!" + dn + '.png'
+        self.chart.plot("data_transfer/" + filename0)
+
+        df1 = df.tail(24)
+        df1.index = range(0, 24)
+        self.chart.add(df1, dn + " PERPETUAL ZOOM")
+        self.chart.add_config(c)
+        filename1 = "!" + dn + '_zoom.png'
+        self.chart.plot("data_transfer/" + filename1)
+        return filename0, filename1
+
+
+    @staticmethod
+    def get_api_key():
         # api_acces_key.json file is:
         #
         # {
@@ -477,31 +604,24 @@ class EmaShiftMultiStrategy(bt.Strategy):
 
         return api_key, secure_key
 
-    def start_data_threads(self):
-        if self.is_live_run:
-            thread1 = threading.Thread(target=self.save_data_loop)
-            thread1.start()
-            self.log(f"Data saver started: data_transfer_for_process.pickle", level=10)
-            # thread1.join()
+    # def start_data_threads(self):
+    #     if self.is_live_run:
+    #         thread1 = threading.Thread(target=self.save_data_loop)
+    #         thread1.start()
+    #         # thread1.join()
 
-    def save_keys(self):
+    def save_collected_data(self):
         save_dict = {}
         for cd_key in self.cd:
             save_dict[cd_key] = self.cd[cd_key].get_save_data()
         self.save_dict(save_dict)
 
-    def save_data_loop(self):
-        time.sleep(60)
-        while True:
-            self.save_keys()
-            time.sleep(60*3)
-
-    def save_dict(self, dict, file_path='data_transfer_for_process.pickle'):
+    def save_dict(self, ddict, file_path='data_transfer/data_transfer_for_process.pickle'):
         try:
             if os.path.exists(file_path):
                 os.remove(file_path)
             with open(file_path, 'wb') as file:
-                pickle.dump(dict, file)
+                pickle.dump(ddict, file)
         except Exception as e:
             self.log(f"An error occurred while saving the dictionary: {e}", level=1)
 
@@ -850,6 +970,16 @@ class EmaShiftMultiStrategy(bt.Strategy):
         for ad in arrived_data:
             data = self.datas[ad]
             dn = data._name
+
+            if self.is_live_run:
+                self.set_life_signal(key="Strategy_next1_" + str(dn),
+                                     cclass="EmaShiftMultiStrategy",
+                                     method="next",
+                                     msg1=str(dn),
+                                     msg2=str(str(data.close[0])),
+                                     msg3=""
+                                     )
+
             self.log(f"Market data recieved: {num2date(data.datetime[0])} {dn}, {data.close[0]}", level=5)
             c = self.cc[dn]
             # if ad == 0:
@@ -868,7 +998,9 @@ class EmaShiftMultiStrategy(bt.Strategy):
                 continue
             elif self.steps_count == 699:
                 if self.is_live_run:
-                    self.save_keys()
+                    self.save_collected_data()
+                    self.scheduled_account_info()
+
 
             long_signal = (round(self.cd[dn].ema_fast_long_down_shift_data_history[0], 8) > round(self.cd[dn].ema_slow_long_data_history[0], 8)and
                            round(self.cd[dn].ema_fast_long_down_shift_data_history[1], 8) <= round(self.cd[dn].ema_slow_long_data_history[1], 8))
@@ -879,6 +1011,40 @@ class EmaShiftMultiStrategy(bt.Strategy):
                             round(self.cd[dn].ema_fast_short_up_shift_data_history[1], 8) >= round(self.cd[dn].ema_slow_short_data_history[1], 8))
             short_close = (round(self.cd[dn].ema_fast_short_up_shift_data_history[0], 8) > round(self.cd[dn].ema_slow_short_data_history[0], 8) and
                            round(self.cd[dn].ema_fast_short_up_shift_data_history[1], 8) <= round(self.cd[dn].ema_slow_short_data_history[1], 8))
+
+            if self.is_live_run:
+                self.set_life_signal(key="Strategy_next2_" + str(dn) + "long_signal",
+                                     cclass="EmaShiftMultiStrategy",
+                                     method="next",
+                                     msg1=str(dn),
+                                     msg2=str("long_signal"),
+                                     msg3=str(long_signal)
+                                     )
+
+                self.set_life_signal(key="Strategy_next2_" + str(dn) + "long_close",
+                                     cclass="EmaShiftMultiStrategy",
+                                     method="next",
+                                     msg1=str(dn),
+                                     msg2=str("long_close"),
+                                     msg3=str(long_close)
+                                     )
+
+                self.set_life_signal(key="Strategy_next2_" + str(dn) + "short_signal",
+                                     cclass="EmaShiftMultiStrategy",
+                                     method="next",
+                                     msg1=str(dn),
+                                     msg2=str("short_signal"),
+                                     msg3=str(short_signal)
+                                     )
+
+                self.set_life_signal(key="Strategy_next2_" + str(dn) + "short_close",
+                                     cclass="EmaShiftMultiStrategy",
+                                     method="next",
+                                     msg1=str(dn),
+                                     msg2=str("short_close"),
+                                     msg3=str(short_close)
+                                     )
+
 
             # long_signal = True if np.random.randint(0, 3) == 0 else False
             # long_close = True if np.random.randint(0, 3) == 0 else False
@@ -892,7 +1058,7 @@ class EmaShiftMultiStrategy(bt.Strategy):
 
             # Strategy trade
             rsrc = self.rsrc(data)
-            # continue
+            continue
             if not self.is_live_data():
                 continue
             # TRADE -------------------------------------------------------------------------------
@@ -924,8 +1090,8 @@ class EmaShiftMultiStrategy(bt.Strategy):
 
                     if self.getposition(data).size > 0:
                         # Turn over Long to Short
-                        self.log(f"{dn} Strategy: Long->Short " )
-                        self.s_close(data, "Long->Short", level=3)
+                        self.log(f"{dn} Strategy: Long->Short ")
+                        self.s_close(data, "Long->Short")
                         if self.is_live_run:
                             time.sleep(10)
                     self.s_sell(data)
@@ -1005,21 +1171,21 @@ class EmaShiftMultiStrategy(bt.Strategy):
             # self.orders[order_data_name] = None  # Reset the order to enter the position
 
     def notify_trade(self, trade):
-        return
-        # if not self.is_live_run:
-        #     if trade.isclosed:
-        #         self.symbol_profit[trade.getdataname()] += trade.pnlcomm
-        #         self.total_pnlcomm += trade.pnlcomm
-        #         self.paid_comission += (trade.pnlcomm - trade.pnl)
-        #         # print("close", trade.getdataname())
-        #
-        #     c = self.cc[trade.getdataname()]
-        #     if c.show_log:
-        #         if trade.isclosed:  # If the position is closed
-        #             self.log(f'{self.closed_trade_count} Closed  {trade.getdataname()} {self.data.num2date(trade.data.datetime[0])} {trade.data.close[0]} PNL={trade.pnlcomm:.10f}, Commission{trade.pnlcomm - trade.pnl:.10f} {trade.status_names[trade.status]}')
-        #             self.closed_trade_count += 1
-        #         elif trade.justopened:
-        #             self.log(f'   Open    {trade.getdataname()} {self.data.num2date(trade.data.datetime[0])} {trade.price} {trade.size} {trade.status_names[trade.status]}')
+        # return
+        if not self.is_live_run:
+            if trade.isclosed:
+                self.symbol_profit[trade.getdataname()] += trade.pnlcomm
+                self.total_pnlcomm += trade.pnlcomm
+                self.paid_comission += (trade.pnlcomm - trade.pnl)
+                # print("close", trade.getdataname())
+
+            c = self.cc[trade.getdataname()]
+            if c.show_log:
+                if trade.isclosed:  # If the position is closed
+                    self.log(f'{self.closed_trade_count} Closed  {trade.getdataname()} {self.data.num2date(trade.data.datetime[0])} {trade.data.close[0]} PNL={trade.pnlcomm:.10f}, Commission{trade.pnlcomm - trade.pnl:.10f} {trade.status_names[trade.status]}')
+                    self.closed_trade_count += 1
+                elif trade.justopened:
+                    self.log(f'   Open    {trade.getdataname()} {self.data.num2date(trade.data.datetime[0])} {trade.price} {trade.size} {trade.status_names[trade.status]}')
 
 
 

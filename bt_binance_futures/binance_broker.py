@@ -86,10 +86,8 @@ class BinanceBroker(BrokerBase):
 
         self.logger = Logger()
         self.log = self.logger.log
-
-    # def log(self, text, text2="", text3="", text4="", text5="", text6="", level=1):
-    #     if level > self.log_level:
-    #         print(text, text2, text3, text4, text5, text6)
+        self.set_life_signal = self._store.set_life_signal
+        self.save_life_signals = self._store.save_life_signals
 
     def start(self):
         self.startingcash = self.cash = self.getcash()  # Стартовые и текущие свободные средства по счету. Подписка на позиции для портфеля/биржи
@@ -254,13 +252,23 @@ class BinanceBroker(BrokerBase):
     #     return order
 
     def _futures_submit(self, owner, data, side, exectype, size, price):
-        type = self._ORDER_TYPES.get(exectype, ORDER_TYPE_MARKET)
+
+        ttype = self._ORDER_TYPES.get(exectype, ORDER_TYPE_MARKET)
         symbol = data._name
+
+        self.set_life_signal(key="BinanceBroker1" + str(self.symbol),
+                             cclass="BinanceBroker",
+                             method="_futures_submit",
+                             msg1=str(self.symbol),
+                             msg2=str(side),
+                             msg3=str(size)
+                             )
+
         if size is None:
             self.log("None Size ", level=1)
-        self.log("_futures_submit", symbol, side, type, size, price, level=1)
+        self.log("_futures_submit", symbol, side, ttype, size, price, level=1)
         self.log("", level=1)
-        binance_order = self._store.futures_create_order(symbol, side, type, size, price)
+        binance_order = self._store.futures_create_order(symbol, side, ttype, size, price)
 
         # {
         #     "clientOrderId": "testOrder",

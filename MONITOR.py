@@ -102,10 +102,10 @@ class Monitor:
 
     @staticmethod
     def download_file_sftp():
-        hostname = "202.182.111.65"
+        hostname = "45.77.11.169"
         port = 22
         username = "root"
-        password = "b$8JeBFfhL5F.9JR"
+        password = "y%3NdWy,]G9KQdTa"
         remote_filepath = "data_transfer/data_transfer_for_process.pickle"
         local_filepath = "data_transfer/data_transfer_for_process.pickle"
         max_attempts = 4
@@ -114,6 +114,32 @@ class Monitor:
         client = paramiko.SSHClient()
         # Add server's SSH key automatically if missing
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        attempt = 0
+        while attempt < max_attempts:
+            try:
+                # Connect to the server
+                client.connect(hostname, port=port, username=username, password=password)
+                # Start SFTP session
+                sftp = client.open_sftp()
+                # Download file
+                sftp.get(remote_filepath, local_filepath)
+                # Close SFTP session
+                sftp.close()
+                break  # Exit the loop if download was successful
+            except (paramiko.SSHException, paramiko.sftp_lib.SFTPError) as e:
+                print(f"Attempt {attempt + 1} failed: {e}")
+                time.sleep(5)  # Wait for 5 seconds before retrying
+                attempt += 1
+            finally:
+                # Ensure the client is closed properly
+                client.close()
+
+        if attempt == max_attempts:
+            print("Failed to download the file after maximum attempts.")
+
+        remote_filepath = "data_transfer/ESM_settlement.xlsx"
+        local_filepath = "data_transfer/ESM_settlement.xlsx"
 
         attempt = 0
         while attempt < max_attempts:
@@ -307,10 +333,10 @@ class Monitor:
             self.p[sid]['ax11'].xaxis.set_ticks(np.arange(0, self.time_period, 5000))
             self.p[sid]['ax11'].set_facecolor('#ffffff')
 
-            color = np.array([''] * self.time_period)
-            color_mask_up = np.where(self.close_history[sid] >= self.open_history[sid])[0]
-            color_mask_down = np.where(self.close_history[sid] < self.open_history[sid])[0]
-            color[color_mask_up] = "green"
+            color = np.array(['green'] * self.time_period)
+            # color_mask_up = np.where(self.close_history[sid] > self.open_history[sid])[0]
+            color_mask_down = np.where(self.close_history[sid] <= self.open_history[sid])[0]
+            # ccolor[color_mask_up] = "green"
             color[color_mask_down] = "red"
 
             self.p[sid]['ax11'].bar(self.xaxis, bottom=self.open_history[sid],
@@ -406,14 +432,14 @@ class Monitor:
             self.p[sid]['ax12'].bar(self.zoom_xaxis, bottom=self.open_history[sid][-self.zoom:],
                                     height=(self.close_history[sid][-self.zoom:] - self.open_history[sid][-self.zoom:]),
                                     width=1,
-                                    color=color,
+                                    color=color[-self.zoom:],
                                     align='edge',
                                     edgecolor='none')
 
             self.p[sid]['ax12'].bar(self.zoom_xaxis + .45, bottom=self.low_history[sid][-self.zoom:],
                                     height=(self.high_history[sid][-self.zoom:] - self.low_history[sid][-self.zoom:][-self.zoom:]),
                                     width=0.1,
-                                    color=color,
+                                    color=color[-self.zoom:],
                                     align='edge',
                                     edgecolor='none')
             #
@@ -444,14 +470,14 @@ class Monitor:
             self.p[sid]['ax13'].bar(self.zoom_xaxis, bottom=self.open_history[sid][-self.zoom:],
                                     height=(self.close_history[sid][-self.zoom:] - self.open_history[sid][-self.zoom:]),
                                     width=1,
-                                    color=color,
+                                    color=color[-self.zoom:],
                                     align='edge',
                                     edgecolor='none')
 
             self.p[sid]['ax13'].bar(self.zoom_xaxis + .45, bottom=self.low_history[sid][-self.zoom:],
                                     height=(self.high_history[sid][-self.zoom:] - self.low_history[sid][-self.zoom:][-self.zoom:]),
                                     width=0.1,
-                                    color=color,
+                                    color=color[-self.zoom:],
                                     align='edge',
                                     edgecolor='none')
 

@@ -11,7 +11,7 @@ from requests.exceptions import ConnectTimeout, ConnectionError
 
 from .binance_broker import BinanceBroker
 from .binance_feed import BinanceData
-from bt_tools import Logger
+from bt_tools import Logger, LifeSignal
 
 
 class BinanceStore(object):
@@ -60,7 +60,15 @@ class BinanceStore(object):
 
         self.logger = Logger()
         self.log = self.logger.log
+        self.life_sinal = LifeSignal()
+
         self.feed_delay = 0
+
+    def set_life_signal(self, key, cclass="", method="", msg1="", msg2="", msg3=""):
+        self.life_sinal.set_life_signal(key, cclass, method, msg1, msg2, msg3)
+
+    def save_life_signals(self):
+        self.life_sinal.save_life_signals()
 
     def _format_value(self, value, step):
         precision = step.find('1') - 1

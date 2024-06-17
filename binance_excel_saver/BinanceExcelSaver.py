@@ -65,7 +65,7 @@ class BinanceExcelSaver:
         return {k: conversions.get(k, lambda v: v)(v) for k, v in data.items()}
 
     @classmethod
-    def save_execution_report(cls, data, filename='data.xlsx'):
+    def save_execution_report(cls, data, filename='data_transfer/ESM_settlement.xlsx'):
         """
         Save specific fields from execution report data to the 'trade_report' sheet in an Excel file.
 
@@ -94,7 +94,7 @@ class BinanceExcelSaver:
         cls.append_to_excel(new_df, filename, sheet_name='trade_report')
 
     @classmethod
-    def save_account_update(cls, data, filename='data.xlsx'):
+    def save_account_update(cls, data, filename='data_transfer/ESM_settlement.xlsx'):
         """
         Save specific fields from account update data to the 'account_report' sheet in an Excel file.
 
@@ -159,7 +159,7 @@ class BinanceExcelSaver:
                 BinanceExcelSaver.auto_adjust_column_width(writer.sheets[sheet_name])
 
     @classmethod
-    def save_info_sheet(cls, data, filename='data.xlsx'):
+    def save_info_sheet(cls, data, filename='data_transfer/ESM_settlement.xlsx'):
         """
         Save dictionary data to the 'info' sheet in an Excel file, with each key-value pair in adjacent columns.
         If the value is a datetime in milliseconds, convert it to a human-readable format.
@@ -227,6 +227,95 @@ class BinanceExcelSaver:
             adjusted_width = (max_length + 2)
             sheet.column_dimensions[column_letter].width = adjusted_width
 
+    @classmethod
+    def save_balance_data(cls, data, filename='data_transfer/ESM_settlement.xlsx'):
+        balance_header = ['timestamp', 'asset', 'balance', 'crossWalletBalance', 'availableBalance', 'crossUnPnl', 'USDT_Value']
+
+        # Current timestamp
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # Convert the data into a format suitable for DataFrame with timestamp
+        rows = []
+        for row in data:
+            rows.append([timestamp] + [item[0] for item in row])
+
+        balance_df = pd.DataFrame(rows, columns=balance_header)
+
+        columns_to_convert = ['balance',
+                              'crossWalletBalance',
+                              'availableBalance',
+                              'crossUnPnl',
+                              'USDT_Value'
+                              ]
+
+        balance_df[columns_to_convert] = balance_df[columns_to_convert].astype(float)
+
+        # Calculate the total USDT_Value
+        # total_usdt_value = balance_df['USDT_Value'].astype(float).abs().sum()
+        #
+        # # Append a summary row
+        # summary_row = pd.DataFrame([[timestamp, 'TOTAL', None, None, None, None, total_usdt_value]], columns=balance_header)
+        # balance_df = pd.concat([balance_df, summary_row], ignore_index=True)
+
+        # Create or overwrite the "Balance" sheet
+        if os.path.exists(filename):
+            book = load_workbook(filename)
+            if "Balance" in book.sheetnames:
+                del book["Balance"]
+            book.save(filename)
+
+        with pd.ExcelWriter(filename, engine='openpyxl', mode='a') as writer:
+            balance_df.to_excel(writer, sheet_name='Balance', index=False)
+            BinanceExcelSaver.auto_adjust_column_width(writer.sheets['Balance'])
+
+    @classmethod
+    def save_positions_data(cls, data, filename='data_transfer/ESM_settlement.xlsx'):
+        positions_header = [
+            'timestamp', 'Symbol', 'Position', 'Entry Price', 'USDT_Enter_Value',
+            'USDT_Market_Value', 'Unrealized PnL (USDT)'
+        ]
+
+        # Current timestamp
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # Convert the data into a format suitable for DataFrame with timestamp
+        rows = []
+        for row in data:
+            rows.append([timestamp] + [item[0] for item in row])
+
+        positions_df = pd.DataFrame(rows, columns=positions_header)
+
+        columns_to_convert = ['Position',
+                              'Entry Price',
+                              'USDT_Enter_Value',
+                              'USDT_Market_Value',
+                              'Unrealized PnL (USDT)'
+                              ]
+
+        positions_df[columns_to_convert] = positions_df[columns_to_convert].astype(float)
+
+        # # Calculate the totals for USDT_Enter_Value, USDT_Market_Value, Unrealized PnL (USDT)
+        # total_usdt_enter_value = positions_df['USDT_Enter_Value'].sum()
+        # total_usdt_market_value = positions_df['USDT_Market_Value'].sum()
+        # total_unrealized_pnl = positions_df['Unrealized PnL (USDT)'].sum()
+        #
+        # # Append a summary row
+        # summary_row = pd.DataFrame(
+        #     [[timestamp, 'TOTAL', '', '', total_usdt_enter_value, total_usdt_market_value, total_unrealized_pnl]],
+        #     columns=positions_header
+        # )
+        # positions_df = pd.concat([positions_df, summary_row], ignore_index=True)
+
+        # Create or overwrite the "Positions" sheet
+        if os.path.exists(filename):
+            book = load_workbook(filename)
+            if "Positions" in book.sheetnames:
+                del book["Positions"]
+            book.save(filename)
+
+        with pd.ExcelWriter(filename, engine='openpyxl', mode='a') as writer:
+            positions_df.to_excel(writer, sheet_name='Positions', index=False)
+            BinanceExcelSaver.auto_adjust_column_width(writer.sheets['Positions'])
 
 if __name__ == "__main__":
 
@@ -258,44 +347,59 @@ if __name__ == "__main__":
     #     'Z': '5.10296600', 'Y': '5.10296600', 'Q': '0.00000000', 'W': 1707120960761, 'V': 'EXPIRE_MAKER'
     # }
 
-    execution_data = {
-        's': 'AVAXUSDT',
-        'c': 'YzK95WLgREO1hfLBbQyYHI',
-        'S': 'SELL', 'o': 'MARKET', 'f': 'GTC', 'q': '1',
-        'p': '0', 'ap': '32.5460', 'sp': '0', 'x': 'TRADE', 'X': 'FILLED',
-        'i': 21519460598, 'l': '1', 'z': '1', 'L': '32.5460',
-        'n': '0.00002133', 'N': 'BNB', 'T': 1717873621785,
-        't': 808690180, 'b': '0', 'a': '0', 'm': False, 'R': False,
-        'wt': 'CONTRACT_PRICE', 'ot': 'MARKET',
-        'ps': 'BOTH', 'cp': False, 'rp': '0.02200000',
-        'pP': False, 'si': 0, 'ss': 0,
-        'V': 'NONE', 'pm': 'NONE', 'gtd': 0
-    }
+    # execution_data = {
+    #     's': 'AVAXUSDT',
+    #     'c': 'YzK95WLgREO1hfLBbQyYHI',
+    #     'S': 'SELL', 'o': 'MARKET', 'f': 'GTC', 'q': '1',
+    #     'p': '0', 'ap': '32.5460', 'sp': '0', 'x': 'TRADE', 'X': 'FILLED',
+    #     'i': 21519460598, 'l': '1', 'z': '1', 'L': '32.5460',
+    #     'n': '0.00002133', 'N': 'BNB', 'T': 1717873621785,
+    #     't': 808690180, 'b': '0', 'a': '0', 'm': False, 'R': False,
+    #     'wt': 'CONTRACT_PRICE', 'ot': 'MARKET',
+    #     'ps': 'BOTH', 'cp': False, 'rp': '0.02200000',
+    #     'pP': False, 'si': 0, 'ss': 0,
+    #     'V': 'NONE', 'pm': 'NONE', 'gtd': 0
+    # }
+    #
+    # BinanceExcelSaver.save_execution_report(execution_data, 'binance_data.xlsx')
+    #
+    # # Example usage for account update:
+    # account_data = {
+    #     'e': 'ACCOUNT_UPDATE', 'T': 1717804802111, 'E': 1717804802112,
+    #     'a': {
+    #         'B': [{
+    #             'a': 'USDT',
+    #             'wb': '201.39221840',
+    #             'cw': '201.39221840',
+    #             'bc': '0.00335157'
+    #         }],
+    #         'P': [],
+    #         'm': 'FUNDING_FEE'
+    #     }
+    # }
+    #
+    # BinanceExcelSaver.save_account_update(account_data, 'binance_data.xlsx')
+    #
+    # # Example usage for info sheet:
+    # info_data = {
+    #     'start_time': 1707120960762,
+    #     'end_time': 1707121960762,
+    #     'description': 'Sample info data'
+    # }
 
-    BinanceExcelSaver.save_execution_report(execution_data, 'binance_data.xlsx')
+    data = [
+        [["BTC"], [0.1], [22], [33], [44], [55]],
+        [["ETH"], [0.1], [22], [33], [44], [55]],
+        [["BNB"], [0.1], [22], [33], [44], [55]]
+    ]
+    BinanceExcelSaver.save_balance_data(data)
 
-    # Example usage for account update:
-    account_data = {
-        'e': 'ACCOUNT_UPDATE', 'T': 1717804802111, 'E': 1717804802112,
-        'a': {
-            'B': [{
-                'a': 'USDT',
-                'wb': '201.39221840',
-                'cw': '201.39221840',
-                'bc': '0.00335157'
-            }],
-            'P': [],
-            'm': 'FUNDING_FEE'
-        }
-    }
+    data = [
+        [["BTC"], [-100], [30000], [30000], [35000], [5000]],
+        [["ETH"], [+200], [2000], [20000], [22000], [2000]],
+        [["BNB"], [-12], [300], [15000], [18000], [3000]]
+    ]
 
-    BinanceExcelSaver.save_account_update(account_data, 'binance_data.xlsx')
+    BinanceExcelSaver.save_positions_data(data)
 
-    # Example usage for info sheet:
-    info_data = {
-        'start_time': 1707120960762,
-        'end_time': 1707121960762,
-        'description': 'Sample info data'
-    }
 
-    BinanceExcelSaver.save_info_sheet(info_data, 'binance_data.xlsx')
