@@ -29,7 +29,7 @@ from joblib import dump, load
 from multiprocessing import Process, Manager
 from types import SimpleNamespace
 
-from numba import jit
+# from numba import jit
 
 from bt_tools import df_check, binance_download
 
@@ -40,7 +40,7 @@ from bt_tools import df_check, binance_download
 
 # from RSI_Strategy_dev3 import RSIStrategy
 from EMA_Shift_Multi_Strategy import EmaShiftMultiStrategy
-from EMA_Shift_Multi_Strategy import ESMSizer
+from EMA_Shift_Multi_Strategy import ESMSizer, OnePositionSizer
 
 # from strategy_levi import BreakoutStrategy, NamedPandasData, FixedCashSizer, AccountValueObserver
 # from data_utils import download_tickers, get_tickers_from_wiki
@@ -120,10 +120,11 @@ def cerebro_process(df_dict, config_dict, plot=False, force_num_of_symbols=None)
 
     start_cash = 100000.0
     cerebro.broker.setcash(start_cash)
-    cerebro.broker.setcommission(commission=0.00075)
+    cerebro.broker.setcommission(commission=0.00045)
     # cerebro.broker.setcommission(commission=0.0)
-    # cerebro.addsizer(bt.sizers.PercentSizer, percents=70)
-    cerebro.addsizer(ESMSizer, symbols=list(df_dict.keys()),  max_percent=70, start_cash=start_cash, force_num_of_symbols=force_num_of_symbols)
+    cerebro.addsizer(OnePositionSizer, symbols=list(df_dict.keys()), percent=80, start_cash=start_cash, is_live_run=False)
+    # cerebro.addsizer(bt.sizers.PercentSizer, percents=80)
+    # cerebro.addsizer(ESMSizer, symbols=list(df_dict.keys()),  max_percent=70, start_cash=start_cash, force_num_of_symbols=force_num_of_symbols)
 
     # cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trade_analyzer")
     # cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
@@ -219,7 +220,20 @@ def cerebro_process(df_dict, config_dict, plot=False, force_num_of_symbols=None)
     else:
         tarrm = data_res["sharperatio"] * math.log(data_res["trades"])
 
-    data_res["meter"] = data_res["nom_pnl_closed"]
+    data_res["meter"] = data_res["nom_pnl_closed"] * data_res["trades"]
+    # data_res["meter"] = data_res["sqn"]
+
+    # if data_res["nom_pnl_closed"] == 0:
+    #     data_res["meter"] = 0
+    # else:
+    #
+    #     data_res["meter"] = (1 / (start_cash - data_res["dd"][0]) * data_res["trades"])
+
+
+        # if start_cash - data_res["dd"][0] > 3500:
+        #     data_res["meter"] = 0
+        # else:
+        #     data_res["meter"] = data_res["nom_pnl_closed"]
     # print(cerebro_result[0].cd["ETHUSDT"].portfolio_value)
 
     # filtered_arr = cerebro_result[0].cd["ETHUSDT"].portfolio_value[cerebro_result[0].cd["ETHUSDT"].portfolio_value != 0]
@@ -276,31 +290,60 @@ def numba_product(*arrays):
 def parmeter_combinations(max_worker):
     settings = {}
     settings["is_long"] = np.random.permutation(np.arange(1, 2, 1, dtype=np.int16))  # 0 nem 1 igen
-    settings["ema_fast_long"] = np.random.permutation(np.arange(15, 40, 1, dtype=np.int16))
-    settings["ema_slow_long"] = np.random.permutation(np.arange(400, 600, 1, dtype=np.int16))
-    settings["ema_fast_long_down_shift"] = np.random.permutation(np.arange(90, 100, 1, dtype=np.int16))  # / 100
-    settings["is_stop_loss_long"] = np.random.permutation(np.arange(0, 2, 1, dtype=np.int16))  # 0 nem 1 igen
-    settings["stop_loss_percent_long"] = np.random.permutation(np.arange(15, 66, 1, dtype=np.int16))  # / 1000
+    settings["ema_fast_long"] = np.random.permutation(np.arange(5, 150, 5, dtype=np.int16))
+    settings["ema_slow_long"] = np.random.permutation(np.arange(151, 500, 5, dtype=np.int16))
+    settings["ema_fast_long_down_shift"] = np.random.permutation(np.arange(95, 100, 1, dtype=np.int16))  # / 100
+    settings["is_stop_loss_long"] = np.random.permutation(np.arange(1, 2, 1, dtype=np.int16))  # 0 nem 1 igen
+    settings["stop_loss_percent_long"] = np.random.permutation(np.arange(3, 200, 5, dtype=np.int16))  # / 1000
+    # settings["take_percent_long"] = np.random.permutation(np.arange(2, 10, 1, dtype=np.int16))  # / 1000
+    settings["is_trailer_long"] = np.random.permutation(np.arange(1, 2, 1, dtype=np.int16))  # 0 nem 1 igen
+    settings["trailer_long_enter_percent"] = np.random.permutation(np.arange(3, 100, 3, dtype=np.int16))  # / 1000
+    settings["trailer_long_offset"] = np.random.permutation(np.arange(3, 100, 3, dtype=np.int16))  # / 1000
 
-    settings["is_short"] = np.random.permutation(np.arange(0, 2, 1, dtype=np.int16))  # 0 nem 1 igen
-    settings["ema_fast_short"] = np.random.permutation(np.arange(15, 40, 1, dtype=np.int16))
-    settings["ema_slow_short"] = np.random.permutation(np.arange(400, 600, 1, dtype=np.int16))
-    settings["ema_fast_short_up_shift"] = np.random.permutation(np.arange(97, 115, 1, dtype=np.int16))  # / 100
-    settings["is_stop_loss_short"] = np.random.permutation(np.arange(0, 2, 1, dtype=np.int16))  # 0 nem 1 igen
-    settings["stop_loss_percent_short"] = np.random.permutation(np.arange(15, 66, 1, dtype=np.int16))  # / 1000
-    settings["is_trailer_short"] = np.random.permutation(np.arange(0, 2, 1, dtype=np.int16))  # 0 nem 1 igen
-    settings["trailer_short_enter_percent"] = np.random.permutation(np.arange(1, 400, 1, dtype=np.int16))  # / 1000
-    settings["trailer_short_offset"] = np.random.permutation(np.arange(1, 400, 1, dtype=np.int16))  # / 1000
+    settings["is_short"] = np.random.permutation(np.arange(1, 2, 1, dtype=np.int16))  # 0 nem 1 igen
+    settings["ema_fast_short"] = np.random.permutation(np.arange(5, 150, 5, dtype=np.int16))
+    settings["ema_slow_short"] = np.random.permutation(np.arange(151, 500, 5, dtype=np.int16))
+    settings["ema_fast_short_up_shift"] = np.random.permutation(np.arange(99, 110, 1, dtype=np.int16))  # / 100
+    settings["is_stop_loss_short"] = np.random.permutation(np.arange(1, 2, 1, dtype=np.int16))  # 0 nem 1 igen
+    settings["stop_loss_percent_short"] = np.random.permutation(np.arange(3, 200, 5, dtype=np.int16))  # / 1000
+    # settings["take_percent_short"] = np.random.permutation(np.arange(3, 10, 1, dtype=np.int16))  # / 1000
+    settings["is_trailer_short"] = np.random.permutation(np.arange(1, 2, 1, dtype=np.int16))  # 0 nem 1 igen
+    settings["trailer_short_enter_percent"] = np.random.permutation(np.arange(3, 100, 3, dtype=np.int16))  # / 1000
+    settings["trailer_short_offset"] = np.random.permutation(np.arange(3, 100, 3, dtype=np.int16))  # / 1000
 
-    # settings["is_short"] = np.random.permutation(np.arange(1, 2, 1, dtype=np.int16))  # 0 nem 1 igen
-    # settings["ema_fast_short"] = np.random.permutation(np.arange(39, 40, 1, dtype=np.int16))
-    # settings["ema_slow_short"] = np.random.permutation(np.arange(598, 600, 2, dtype=np.int16))
-    # settings["ema_fast_short_up_shift"] = np.random.permutation(np.arange(110, 115, 5, dtype=np.int16))  # / 100
-    # settings["is_stop_loss_short"] = np.random.permutation(np.arange(1, 2, 1, dtype=np.int16))  # 0 nem 1 igen
-    # settings["stop_loss_percent_short"] = np.random.permutation(np.arange(64, 66, 2, dtype=np.int16))  # / 1000
+    settings["max_trade_steps"] = np.random.permutation(np.arange(20, 60, 3, dtype=np.int16))
+
+    refine = {}
+    refine["is_long"] = [0, 0]
+    refine["ema_fast_long"] = [1, 2]
+    refine["ema_slow_long"] = [1, 2]
+    refine["ema_fast_long_down_shift"] = [0.5, 2]
+    refine["is_stop_loss_long"] = [0, 0]
+    refine["stop_loss_percent_long"] = [0.5, 2]
+    # refine["take_percent_long"] = [0.5, 2]
+    refine["is_trailer_long"] = [0, 0]
+    refine["trailer_long_enter_percent"] = [5, 2]
+    refine["trailer_long_offset"] = [5, 2]
+
+    refine["is_short"] = [0, 0]
+    refine["ema_fast_short"] = [1, 2]
+    refine["ema_slow_short"] = [1, 2]
+    refine["ema_fast_short_up_shift"] = [0.5, 2]
+    refine["is_stop_loss_short"] = [0, 0]
+    refine["stop_loss_percent_short"] = [0.5, 2]
+    # refine["take_percent_short"] = [0.5, 2]
+    refine["is_trailer_short"] = [0, 0]
+    refine["trailer_short_enter_percent"] = [5, 2]
+    refine["trailer_short_offset"] = [5, 2]
+    refine["max_trade_steps"] = [0, 0]
 
     params_array = []
     settings_name = []
+    refine_array = []
+
+    for r in refine:
+        rx = [r, refine[r][0], refine[r][1]]
+        refine_array.append(rx)
 
     for k in settings:
         params_array.append(settings[k])
@@ -319,7 +362,7 @@ def parmeter_combinations(max_worker):
     # print(f"Number total combination: {len(all_combinations)}")
     # splited_combinations = np.array_split(all_combinations, max_worker)
     # del all_combinations
-    return params_array, settings_name, total_combinations
+    return params_array, settings_name, total_combinations, refine_array
 
 
 def nth_combination(arrays, n):
@@ -335,7 +378,7 @@ def nth_combination(arrays, n):
     return combination
 
 
-def hpo_worker(worker_no, max_worker, df, arrays, total_combinations, settings_name, shared_dict, base, quote, force_num_of_symbols):
+def hpo_worker(worker_no, max_worker, df, arrays, total_combinations, settings_name, shared_dict, base, quote, force_num_of_symbols, max_try):
     print(f"run worker {max_worker} / {worker_no + 1}")
 
     slice_size = int((total_combinations - 1) / max_worker)
@@ -351,6 +394,9 @@ def hpo_worker(worker_no, max_worker, df, arrays, total_combinations, settings_n
     # for i in selected_slice:
     i = 0
     while i < slice_size-2:
+        shared_dict['try'] += 1
+        if shared_dict['try'] >= max_try:
+            break
         rx = rnd_gen.generate(i)
         sc = nth_combination(arrays, rx)
         # print(f"Worker: {worker_no}, combination: {sc}")
@@ -379,253 +425,336 @@ def hpo_worker(worker_no, max_worker, df, arrays, total_combinations, settings_n
             shared_dict['meter'] = data_res["meter"]
             shared_dict['data'] = data_res
             shared_dict['config'] = config
-        # else:
-            # print(worker_no, "kisebb", data_res["nom_pnl"], shared_dict['nom_pnl'])
 
-            # print_data_result(config, data_res)
-        # print(f"Eof setting")
-        i += 1
+        # i += 1
+        i += random.randint(0, 500)
+
     shared_dict['ready'] += 1
+
+
+def refine_sequences(array1, array2):
+    """
+    Generates sequences centered around the start values from the first array,
+    using the difference and number of elements from the second array.
+
+    :param array1: List of sub-arrays, where each sub-array contains a key and its start value.
+    :param array2: List of sub-arrays, where each sub-array contains a key, difference, and number of elements.
+    :return: List of sub-arrays, where each sub-array contains a key and the generated sequence.
+    """
+    result_array = []
+
+    # Convert array1 to a dictionary for easier lookup
+    start_values = {item[0]: item[1] for item in array1}
+    settings_name = []
+
+    for item in array2:
+        key = item[0]
+        settings_name.append(key)
+        difference = item[1]
+        x = item[2]  # Number of elements on each side
+
+        # Fetch the start value from the first array
+        start_value = start_values.get(key, None)
+
+        if start_value is not None:
+            # Generate the sequence
+            sequence = [start_value + difference * i for i in range(-x, x + 1)]
+            result_array.append(sequence)
+
+    total_combinations = 1
+    for a in result_array:
+        total_combinations *= len(a)
+
+    return result_array, settings_name, total_combinations
+
+
+def filter_array_by_keys(keys, array):
+    first_set = set(keys)
+    filtered = [sub_array for sub_array in array if sub_array[0] in first_set]
+    return filtered
 
 
 if __name__ == "__main__":
     # HPO Start
-    run_type = 'HPO'
-    # run_type = 'SET'
+    run_type = 'SET'
+    # run_type = 'HPO'
+    processors_use = 13
+    max_try0 = 100
+    max_try1 = 50
+    interval = "1m"
+    # interval = "5m"
+    # interval = "15m"
+    # refresh = True
+    refresh = False
+
+    # from_dt = dt.datetime(year=2017, month=8, day=17, hour=0, minute=0)
+    # cutoff_dt = dt.datetime(year=2022, month=1, day=1, hour=0, minute=0)
+    # from_dt = dt.datetime(year=2022, month=1, day=1, hour=0, minute=0)
+    # from_dt = dt.datetime(year=2023, month=1, day=1, hour=0, minute=0)
+    from_dt = dt.datetime(year=2024, month=5, day=1, hour=1, minute=0)
+    cutoff_dt = None
 
     if run_type == "HPO":
 
-        # base = "MATIC"
-        # base = "LINK"
-        # base = "NEAR"
-        # base = "ETC"
-        base = "ETH"
-        quote = "USDT"
-        asset_type = "crypto"
-        futures = True
-        refresh = True
-        # refresh = False
-        force_num_of_symbols = None
+        # bases = ['BTC', 'ETH', 'AVAX', 'BNB', 'SOL', 'DOGE']
+        # bases = ['XRP', 'ADA', 'TRX']
+        # bases = ['WIF', 'STMX', 'STORJ']
+        bases = ['SOL']
 
-        # from_dt = dt.datetime(year=2017, month=8, day=17, hour=0, minute=0)
-        # cutoff_dt = dt.datetime(year=2022, month=1, day=1, hour=0, minute=0)
-        # from_dt = dt.datetime(year=2022, month=1, day=1, hour=0, minute=0)
-        # from_dt = dt.datetime(year=2023, month=1, day=1, hour=0, minute=0)
-        from_dt = dt.datetime(year=2024, month=1, day=1, hour=0, minute=0)
-        cutoff_dt = None
-        interval = "15m"
-        # interval = "1m"
-        # interval = "1h"
+        for base in bases:
+            quote = "USDT"
+            asset_type = "crypto"
+            futures = True
 
-        processors_use = 14
-        arrays, settings_name, total_combinations = parmeter_combinations(processors_use)
+            force_num_of_symbols = None
 
-        print(f"Total combinations: {total_combinations}, combinations / processor: {int(total_combinations /processors_use)}")
+            arrays, settings_name, total_combinations, refine_array = parmeter_combinations(processors_use)
 
-        df_dict = pd.DataFrame(None)
-        if asset_type == "crypto":
-            df_dict = binance_download(base + quote,
-                                       from_dt=from_dt,
-                                       cutoff_dt=cutoff_dt,
-                                       refresh=refresh,
-                                       futures=futures,
-                                       interval=interval)  # in minute from now()
+            print(f"Total combinations: {total_combinations}, combinations / processor: {int(total_combinations /processors_use)}")
 
-            df_dict = df_check(df_dict, del_duplicates=False)
+            df_dict = pd.DataFrame(None)
+            if asset_type == "crypto":
+                df_dict = binance_download(base + quote,
+                                           from_dt=from_dt,
+                                           cutoff_dt=cutoff_dt,
+                                           refresh=refresh,
+                                           futures=futures,
+                                           interval=interval)  # in minute from now()
 
-            # !!!!!!!!
-            # A Binance-nél volt el leállás '2023-03-24 11:00:00' ez a lállás 1 óráig tartott,
-            # de a tw nél ez két adat hiányát ereményezte azért , hogy a tw vel azonos legyen egy adatoto kitörlök
-            # try:
-            #     date_to_delete = '2023-03-24 12:00:00'
-            #     date_to_delete = pd.to_datetime(date_to_delete)
-            #     df_dict = df_dict.drop(date_to_delete)
-            # except:
-            #     pass
-            # !!!!!!!!
+                df_dict = df_check(df_dict, del_duplicates=False)
 
-        # elif asset_type == "stock":
-        #     df = yahoo_download(base + quote, from_dt, back_shift=0, refresh=True, interval="1h")
-        #     print(df)
-        #
-        #     # MINIMUM_CANDLES = 4000
-        #     # ticker_datas, length = download_tickers(TICKERS, END_DATE, MINIMUM_CANDLES, cache=False, interval="1h")
-        #     # START_DATE = ticker_datas[0][1].iloc[-length].name
-        #     # for ticker, ticker_data in tqdm(ticker_datas):
-        #     #     df = NamedPandasData(dataname=ticker_data.iloc[-length:].copy(deep=True), timeframe=bt.TimeFrame.Days, ticker=ticker)
+                # !!!!!!!!
+                # A Binance-nél volt el leállás '2023-03-24 11:00:00' ez a lállás 1 óráig tartott,
+                # de a tw nél ez két adat hiányát ereményezte azért , hogy a tw vel azonos legyen egy adatoto kitörlök
+                # try:
+                #     date_to_delete = '2023-03-24 12:00:00'
+                #     date_to_delete = pd.to_datetime(date_to_delete)
+                #     df_dict = df_dict.drop(date_to_delete)
+                # except:
+                #     pass
+                # !!!!!!!!
 
-        manager = Manager()
-        shared_dict = manager.dict()
-        shared_dict['meter'] = -10000000000000
-        shared_dict['ready'] = 1
-        highest_meter = -10000000000000
+            # elif asset_type == "stock":
+            #     df = yahoo_download(base + quote, from_dt, back_shift=0, refresh=True, interval="1h")
+            #     print(df)
+            #
+            #     # MINIMUM_CANDLES = 4000
+            #     # ticker_datas, length = download_tickers(TICKERS, END_DATE, MINIMUM_CANDLES, cache=False, interval="1h")
+            #     # START_DATE = ticker_datas[0][1].iloc[-length].name
+            #     # for ticker, ticker_data in tqdm(ticker_datas):
+            #     #     df = NamedPandasData(dataname=ticker_data.iloc[-length:].copy(deep=True), timeframe=bt.TimeFrame.Days, ticker=ticker)
 
-        processes = [None] * processors_use
+            highest_meter = -10000000000000
+            for hpo_run in [0, 1]:
 
-        # print("Number of combinations / processor: ", len(arrays[0]))
+                manager = Manager()
+                shared_dict = manager.dict()
+                shared_dict['meter'] = highest_meter
+                shared_dict['ready'] = 1
+                shared_dict['try'] = 0
+                shared_dict['config'] = []
 
-        for p in range(processors_use):
-            processes[p] = Process(target=hpo_worker, kwargs={
-                'worker_no': p,
-                'max_worker': processors_use,
-                'df': df_dict,
-                'arrays': arrays,
-                'total_combinations': total_combinations,
-                'settings_name': settings_name,
-                'shared_dict': shared_dict,
-                'base': base,
-                'quote': quote,
-                'force_num_of_symbols': force_num_of_symbols,
-            })
-            processes[p].start()
+                processes = [None] * processors_use
 
-        while shared_dict['ready'] <= processors_use:
-            if highest_meter != shared_dict['meter']:
+                # print("Number of combinations / processor: ", len(arrays[0]))
+
+                for p in range(processors_use):
+
+                    processes[p] = Process(target=hpo_worker, kwargs={
+                        'worker_no': p,
+                        'max_worker': processors_use,
+                        'df': df_dict,
+                        'arrays': arrays,
+                        'total_combinations': total_combinations,
+                        'settings_name': settings_name,
+                        'shared_dict': shared_dict,
+                        'base': base,
+                        'quote': quote,
+                        'force_num_of_symbols': force_num_of_symbols,
+                        'max_try': max_try0 if hpo_run == 0 else max_try1,
+                    })
+                    processes[p].start()
+
+                while shared_dict['try'] <= (max_try0 if hpo_run == 0 else max_try1):
+                    if highest_meter != shared_dict['meter']:
+                        highest_meter = shared_dict['meter']
+                        try:
+                            print('')
+                            print(shared_dict['try'])
+                            print(shared_dict['data'])
+                            print(shared_dict['config'])
+                        except:
+                            print('')
+
+                    time.sleep(5)
+
+                for p in range(processors_use):
+                    processes[p].join()
+
+                save_dic = shared_dict['config']
+                save_dic.append(["time_stamp", int(time.time())])
                 highest_meter = shared_dict['meter']
-                try:
-                    print('')
-                    print(shared_dict['data'])
-                    print(shared_dict['config'])
-                except:
-                    print('')
+                # dump(save_dic, 'config.joblib')
 
-            time.sleep(5)
+                print("-" * 50)
 
-        for p in range(processors_use):
-            processes[p].join()
+                if hpo_run == 0:
+                    print("Draft result:")
+                else:
+                    print("Refined result:")
 
-        save_dic = shared_dict['config']
-        save_dic.append(["time_stamp", int(time.time())])
-        # dump(save_dic, 'config.joblib')
+                print(base, quote)
+                print(shared_dict['data'])
+                print(shared_dict['config'])
+                print("-" * 50)
 
-        print(shared_dict['data'])
-        print(save_dic)
-        print('Ready.')
+                if hpo_run == 0:
+                    selected_settings = filter_array_by_keys(settings_name, save_dic)
+                    arrays, settings_name, total_combinations = refine_sequences(selected_settings, refine_array)
+                    print("Refine total combinations:", total_combinations)
+                    del shared_dict, processes
 
     elif run_type == "SET":
 
-        from_dt = dt.datetime(year=2022, month=1, day=1, hour=0, minute=0)
+        from_dt = dt.datetime(year=2024, month=5, day=1, hour=0, minute=0)
+        # cutoff_dt = dt.datetime(year=2024, month=5, day=1, hour=0, minute=0)
         cutoff_dt = None
         refresh = False
         futures = True
 
+        cc_base = [["plot", False],
+                   ["show_log", False],
+                   ["worker_no", 0],
+                   ]
+
         cc = {}
 
-        # base = "BNB"
-        # quote = "USDT"
-        # config = [['base', base],
-        #           ['quote', quote],
-        #           ["plot", False],
-        #           ["show_log", False],
-        #           ["worker_no", 0],
-        #           ['is_long', 1],
-        #           ['ema_fast_long', 30],
-        #           ['ema_slow_long', 476],
-        #           ['ema_fast_long_down_shift', 97],
-        #           ['is_stop_loss_long', 1],
-        #           ['stop_loss_percent_long', 30],
-        #           ['is_short', 0],
-        #           ['ema_fast_short', 31],
-        #           ['ema_slow_short', 462],
-        #           ['ema_fast_short_up_shift', 101],
-        #           ['is_stop_loss_short', 0],
-        #           ['stop_loss_percent_short', 64],
-        #           ['is_trailer_short', 0],
-        #           ['trailer_short_enter_percent', 10],
-        #           ['trailer_short_offset', 212]
-        #           ]
-        #
-        # kwargs = dict(config)
-        # cc[base + quote] = SimpleNamespace(**kwargs)
+        base = "AVAX"
+        quote = "USDT"
+        config = [['base', base],
+                  ['quote', quote],
+                  ['is_long', 1], ['ema_fast_long', 53], ['ema_slow_long', 265], ['ema_fast_long_down_shift', 99],
+                  ['is_stop_loss_long', 1], ['stop_loss_percent_long', 64],
+                  ['is_trailer_long', 1], ['trailer_long_enter_percent', 49], ['trailer_long_offset', 47],
+                  ['is_short', 1],
+                  ['ema_fast_short', 39], ['ema_slow_short', 397],
+                  ['ema_fast_short_up_shift', 101], ['is_stop_loss_short', 1], ['stop_loss_percent_short', 48],
+                  ['is_trailer_short', 1], ['trailer_short_enter_percent', 38],
+                  ['trailer_short_offset', 85], ['max_trade_steps', 47]
+                  ]
 
-        # {
-        #     'nom_pnl_end': 204080.098, 'nom_pnl_closed': 175130.906, 'drawdown': 54503.55, 'trades': 50, 'sharperatio': 2.172291573597915,
-        #     'annualreturn': OrderedDict([(2022, 0.6818615032139941), (2023, 0.1906676959501663), (2024, 0.5184734270285465)]), 'sqn': 1.51, 'meter': 175130.906
-        # }
-        # [['is_long', 1], ['ema_fast_long', 29], ['ema_slow_long', 462], ['ema_fast_long_down_shift', 98], ['is_stop_loss_long', 1], ['stop_loss_percent_long', 23], ['is_short', 1],
-        #  ['ema_fast_short', 34], ['ema_slow_short', 525], ['ema_fast_short_up_shift', 111], ['is_stop_loss_short', 1], ['stop_loss_percent_short', 21], ['is_trailer_short', 1],
-        #  ['trailer_short_enter_percent', 210], ['trailer_short_offset', 52], ['base', 'ETH'], ['quote', 'USDT'], ['plot', False], ['show_log', False], ['worker_no', 10]]
+        config.extend(cc_base)
+        kwargs = dict(config)
+        cc[base + quote] = SimpleNamespace(**kwargs)
+
+        base = "BNB"
+        quote = "USDT"
+        config = [['base', base],
+                  ['quote', quote],
+                  ['is_long', 1], ['ema_fast_long', 21], ['ema_slow_long', 227], ['ema_fast_long_down_shift', 99],
+                  ['is_stop_loss_long', 1], ['stop_loss_percent_long', 57],
+                  ['is_trailer_long', 1], ['trailer_long_enter_percent', 78], ['trailer_long_offset', 26],
+                  ['is_short', 1],
+                  ['ema_fast_short', 13], ['ema_slow_short', 412],
+                  ['ema_fast_short_up_shift', 105], ['is_stop_loss_short', 1], ['stop_loss_percent_short', 122],
+                  ['is_trailer_short', 1], ['trailer_short_enter_percent', 41],
+                  ['trailer_short_offset', 85], ['max_trade_steps', 41]
+                  ]
+
+        config.extend(cc_base)
+        kwargs = dict(config)
+        cc[base + quote] = SimpleNamespace(**kwargs)
 
         base = "ETH"
         quote = "USDT"
         config = [['base', base],
                   ['quote', quote],
-                  ["plot", False],
-                  ["show_log", False],
-                  ["worker_no", 0],
-                  ['is_long', 1],
-                  ['ema_fast_long', 20],
-                  ['ema_slow_long', 470],
-                  ['ema_fast_long_down_shift', 99],
-                  ['is_stop_loss_long', 1],
-                  ['stop_loss_percent_long', 27],
+                  ['is_long', 1], ['ema_fast_long', 27], ['ema_slow_long', 370], ['ema_fast_long_down_shift', 99],
+                  ['is_stop_loss_long', 1], ['stop_loss_percent_long', 147],
+                  ['is_trailer_long', 1], ['trailer_long_enter_percent', 85], ['trailer_long_offset', 94],
                   ['is_short', 1],
-                  ['ema_fast_short', 25],
-                  ['ema_slow_short', 575],
-                  ['ema_fast_short_up_shift', 107],
-                  ['is_stop_loss_short', 0],
-                  ['stop_loss_percent_short', 53],
-                  ['is_trailer_short', 0],
-                  ['trailer_short_enter_percent', 352],
-                  ['trailer_short_offset', 4]
+                  ['ema_fast_short', 40], ['ema_slow_short', 282],
+                  ['ema_fast_short_up_shift', 102], ['is_stop_loss_short', 1], ['stop_loss_percent_short', 19],
+                  ['is_trailer_short', 1], ['trailer_short_enter_percent', 12],
+                  ['trailer_short_offset', 89], ['max_trade_steps', 32]
                   ]
 
+        config.extend(cc_base)
         kwargs = dict(config)
-        cc[base+quote] = SimpleNamespace(**kwargs)
+        cc[base + quote] = SimpleNamespace(**kwargs)
 
-        # base = "BTC"
-        # quote = "USDT"
-        # config = [['base', base],
-        #           ['quote', quote],
-        #           ["plot", False],
-        #           ["show_log", False],
-        #           ["worker_no", 0],
-        #           ['is_long', 1],
-        #           ['ema_fast_long', 38],
-        #           ['ema_slow_long', 426],
-        #           ['ema_fast_long_down_shift', 99],
-        #           ['is_stop_loss_long', 1],
-        #           ['stop_loss_percent_long', 15],
-        #           ['is_short', 0],
-        #           ['ema_fast_short', 35],
-        #           ['ema_slow_short', 478],
-        #           ['ema_fast_short_up_shift', 103],
-        #           ['is_stop_loss_short', 0],
-        #           ['stop_loss_percent_short', 53],
-        #           ['is_trailer_short', 0],
-        #           ['trailer_short_enter_percent', 40],
-        #           ['trailer_short_offset', 311]
-        #           ]
-        #
-        # kwargs = dict(config)
-        # cc[base+quote] = SimpleNamespace(**kwargs)
+        base = "DOGE"
+        quote = "USDT"
+        config = [['base', base],
+                  ['quote', quote],
+                  ['is_long', 1], ['ema_fast_long', 50], ['ema_slow_long', 171], ['ema_fast_long_down_shift', 99],
+                  ['is_stop_loss_long', 1], ['stop_loss_percent_long', 58], ['is_trailer_long', 1],
+                  ['trailer_long_enter_percent', 99], ['trailer_long_offset', 21], ['is_short', 1],
+                  ['ema_fast_short', 35],
+                  ['ema_slow_short', 321], ['ema_fast_short_up_shift', 103], ['is_stop_loss_short', 1],
+                  ['stop_loss_percent_short', 63], ['is_trailer_short', 1], ['trailer_short_enter_percent', 24],
+                  ['trailer_short_offset', 72], ['max_trade_steps', 38]
 
-        # base = "AVAX"
-        # quote = "USDT"
-        # config = [['base', base],
-        #           ['quote', quote],
-        #           ["plot", False],
-        #           ["show_log", False],
-        #           ["worker_no", 0],
-        #           ['is_long', 1],
-        #           ['ema_fast_long', 33],
-        #           ['ema_slow_long', 476],
-        #           ['ema_fast_long_down_shift', 93],
-        #           ['is_stop_loss_long', 1],
-        #           ['stop_loss_percent_long', 59],
-        #           ['is_short', 1],
-        #           ['ema_fast_short', 22],
-        #           ['ema_slow_short', 574],
-        #           ['ema_fast_short_up_shift', 98],
-        #           ['is_stop_loss_short', 1],
-        #           ['stop_loss_percent_short', 32],
-        #           ['is_trailer_short', 1],
-        #           ['trailer_short_enter_percent', 248],
-        #           ['trailer_short_offset', 22]
-        #           ]
+                  ]
+
+        config.extend(cc_base)
+        kwargs = dict(config)
+        cc[base + quote] = SimpleNamespace(**kwargs)
+
+        base = "ADA"
+        quote = "USDT"
+        config = [['base', base],
+                  ['quote', quote],
+                  ['is_long', 1], ['ema_fast_long', 65], ['ema_slow_long', 346], ['ema_fast_long_down_shift', 99],
+                  ['is_stop_loss_long', 1], ['stop_loss_percent_long', 168], ['is_trailer_long', 1],
+                  ['trailer_long_enter_percent', 96], ['trailer_long_offset', 87], ['is_short', 1],
+                  ['ema_fast_short', 35],
+                  ['ema_slow_short', 331], ['ema_fast_short_up_shift', 101], ['is_stop_loss_short', 1],
+                  ['stop_loss_percent_short', 138], ['is_trailer_short', 1], ['trailer_short_enter_percent', 72],
+                  ['trailer_short_offset', 15], ['max_trade_steps', 59]
+
+                  ]
+
+        config.extend(cc_base)
+        kwargs = dict(config)
+        cc[base + quote] = SimpleNamespace(**kwargs)
         #
-        # kwargs = dict(config)
-        # cc[base + quote] = SimpleNamespace(**kwargs)
+        base = "XRP"
+        quote = "USDT"
+        config = [['base', base],
+                  ['quote', quote],
+
+                  ['is_long', 1], ['ema_fast_long', 20], ['ema_slow_long', 441], ['ema_fast_long_down_shift', 99],
+                  ['is_stop_loss_long', 1], ['stop_loss_percent_long', 23], ['is_trailer_long', 1],
+                  ['trailer_long_enter_percent', 33], ['trailer_long_offset', 60], ['is_short', 1],
+                  ['ema_fast_short', 105],
+                  ['ema_slow_short', 366], ['ema_fast_short_up_shift', 108], ['is_stop_loss_short', 1],
+                  ['stop_loss_percent_short', 78], ['is_trailer_short', 1], ['trailer_short_enter_percent', 78],
+                  ['trailer_short_offset', 24], ['max_trade_steps', 26]
+
+                  ]
+
+        config.extend(cc_base)
+        kwargs = dict(config)
+        cc[base + quote] = SimpleNamespace(**kwargs)
+
+        base = "SOL"
+        quote = "USDT"
+        config = [['base', base],
+                  ['quote', quote],
+
+                  ['is_long', 1], ['ema_fast_long', 27], ['ema_slow_long', 433], ['ema_fast_long_down_shift', 99],
+                  ['is_stop_loss_long', 1], ['stop_loss_percent_long', 82], ['is_trailer_long', 1],
+                  ['trailer_long_enter_percent', 101], ['trailer_long_offset', 10], ['is_short', 1],
+                  ['ema_fast_short', 11], ['ema_slow_short', 159], ['ema_fast_short_up_shift', 103],
+                  ['is_stop_loss_short', 1], ['stop_loss_percent_short', 162], ['is_trailer_short', 1],
+                  ['trailer_short_enter_percent', 60], ['trailer_short_offset', 17], ['max_trade_steps', 35]
+
+                  ]
+
+        config.extend(cc_base)
+        kwargs = dict(config)
+        cc[base + quote] = SimpleNamespace(**kwargs)
 
         df_dict = {}
         for k in cc:
@@ -636,7 +765,7 @@ if __name__ == "__main__":
                                           cutoff_dt=cutoff_dt,
                                           refresh=refresh,
                                           futures=futures,
-                                          interval='1h')  # in minute from now()
+                                          interval=interval)  # in minute from now()
 
             print(df_dict[k].shape)
 

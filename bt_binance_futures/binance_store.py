@@ -34,7 +34,7 @@ class BinanceStore(object):
     }
 
     def __init__(self, api_key, api_secret, coin_target, testnet=False, retries=5, tld='com'):  # coin_refer, coin_target
-        self.binance = Client(api_key, api_secret, testnet=testnet, tld=tld, requests_params={'timeout': (10, 20)})
+        self.binance = Client(api_key, api_secret, testnet=testnet, tld=tld, requests_params={'timeout': (20, 30)})
         self.binance_socket = ThreadedWebsocketManager(api_key, api_secret, testnet=testnet)
         self.binance_socket.daemon = True
         self.binance_socket.start()

@@ -29,11 +29,12 @@ class CandlestickChart:
         cc = self.config
 
         l1 = f"is_long  {cc.is_long}, ema_fast_long  {cc.ema_fast_long}, ema_slow_long  {cc.ema_slow_long}, long_down_shift {cc.ema_fast_long_down_shift}"
-        l2 = f"is_short {cc.is_long}, ema_fast_short {cc.ema_fast_short}, ema_slow_short {cc.ema_slow_short}, short_up_shift  {cc.ema_fast_short_up_shift}"
-        l3 = f"is_stop_loss_short {cc.is_stop_loss_short}, stop_loss_percent_short {cc.stop_loss_percent_short}"
-        l4 = f"is_trailer_short   {cc.is_trailer_short}, trailer_short_enter_percent {cc.trailer_short_enter_percent}, trailer_short_offset {cc.trailer_short_offset}"
+        l2 = f"is_stop_loss_long {cc.is_stop_loss_long}, stop_loss_percent_long {cc.stop_loss_percent_long}"
+        l3 = f"is_short {cc.is_short}, ema_fast_short {cc.ema_fast_short}, ema_slow_short {cc.ema_slow_short}, short_up_shift  {cc.ema_fast_short_up_shift}"
+        l4 = f"is_stop_loss_short {cc.is_stop_loss_short}, stop_loss_percent_short {cc.stop_loss_percent_short}"
+        l5 = f"is_trailer_short   {cc.is_trailer_short}, trailer_short_enter_percent {cc.trailer_short_enter_percent}, trailer_short_offset {cc.trailer_short_offset}"
 
-        return l1, l2, l3, l4
+        return l1, l2, l3, l4, l5
 
     def add(self, df, symbol):
 
@@ -137,13 +138,14 @@ class CandlestickChart:
         ax1.xaxis.set_visible(False)
         ax2.xaxis.set_visible(False)
 
-        l1, l2, l3, l4 = self.get_config()
+        l1, l2, l3, l4, l5 = self.get_config()
 
-        fig.text(0.125, 0.085, l1, ha='left', fontsize=16, color='#333333')
-        fig.text(0.125, 0.070, l2, ha='left', fontsize=16, color='#333333')
-        fig.text(0.125, 0.055, l3, ha='left', fontsize=16, color='#333333')
-        fig.text(0.125, 0.040, l4, ha='left', fontsize=16, color='#333333')
-        fig.text(0.125, 0.015, f"Tokyo, {datetime.datetime.now().strftime('%B %d, %Y %I:%M:%S %p')}", ha='left', fontsize=16, color='#333333')
+        fig.text(0.125, 0.085 + 0.004, l1, ha='left', fontsize=15, color='#333333')
+        fig.text(0.125, 0.070 + 0.004, l2, ha='left', fontsize=15, color='#333333')
+        fig.text(0.125, 0.055 + 0.004, l3, ha='left', fontsize=15, color='#333333')
+        fig.text(0.125, 0.040 + 0.004, l4, ha='left', fontsize=15, color='#333333')
+        fig.text(0.125, 0.025 + 0.004, l5, ha='left', fontsize=15, color='#333333')
+        fig.text(0.125, 0.010, f"Tokyo, {datetime.datetime.now().strftime('%B %d, %Y %I:%M:%S %p')}", ha='left', fontsize=16, color='#333333')
 
         # Save the chart to a file
         plt.savefig(filename)

@@ -1,5 +1,6 @@
 # Regular
 import datetime
+import sys
 # import sys
 #
 # import pickle
@@ -36,7 +37,7 @@ import backtrader.analyzers as btanalyzers
 # from RSI_Strategy_dev2 import RSIStrategy
 # from RSI_Strategy_dev3 import RSIStrategy, XSizer
 from EMA_Shift_Multi_Strategy import EmaShiftMultiStrategy
-from EMA_Shift_Multi_Strategy import ESMSizer
+from EMA_Shift_Multi_Strategy import ESMSizer, OnePositionSizer
 from bt_tools import get_public_ip, get_api_key, get_asset_balance, get_futures_positions, Logger
 logger = Logger()
 log = logger.log
@@ -46,7 +47,7 @@ def run_live_trade():
     api_key, secure_key = get_api_key()
     client = Client(api_key, secure_key)
 
-    USDT_asset, BNB_asset, other_asset = get_asset_balance(client, asset="USDT", is_print=True)
+    USDT_asset, BNB_asset, other_asset = get_asset_balance(client, asset="USDC", is_print=True)
     start_position, start_price, market_value = get_futures_positions(client, is_print=True)
 
     log("Warnings:", level=10)
@@ -54,7 +55,7 @@ def run_live_trade():
         log("Not enough BNB for commission:", BNB_asset, level=10)
     log("", level=10)
 
-    quote = "USDT"
+    quote = "USDC"
 
     cerebro = bt.Cerebro(quicknotify=True)
 
@@ -76,25 +77,34 @@ def run_live_trade():
 
     cc = {}
 
+    base = "AVAX"
+    quote = "USDT"
+    config = [['base', base],
+              ['quote', quote],
+              ['is_long', 1], ['ema_fast_long', 53], ['ema_slow_long', 265], ['ema_fast_long_down_shift', 99],
+              ['is_stop_loss_long', 1], ['stop_loss_percent_long', 64],
+              ['is_trailer_long', 1], ['trailer_long_enter_percent', 49], ['trailer_long_offset', 47], ['is_short', 1],
+              ['ema_fast_short', 39], ['ema_slow_short', 397],
+              ['ema_fast_short_up_shift', 101], ['is_stop_loss_short', 1], ['stop_loss_percent_short', 48],
+              ['is_trailer_short', 1], ['trailer_short_enter_percent', 38],
+              ['trailer_short_offset', 85], ['max_trade_steps', 47]
+              ]
+
+    config.extend(cc_base)
+    kwargs = dict(config)
+    cc[base + quote] = SimpleNamespace(**kwargs)
+
     base = "BNB"
     quote = "USDT"
     config = [['base', base],
               ['quote', quote],
-              ['is_long', 1],
-              ['ema_fast_long', 30],
-              ['ema_slow_long', 476],
-              ['ema_fast_long_down_shift', 97],
-              ['is_stop_loss_long', 1],
-              ['stop_loss_percent_long', 30],
-              ['is_short', 0],
-              ['ema_fast_short', 31],
-              ['ema_slow_short', 462],
-              ['ema_fast_short_up_shift', 101],
-              ['is_stop_loss_short', 0],
-              ['stop_loss_percent_short', 64],
-              ['is_trailer_short', 0],
-              ['trailer_short_enter_percent', 10],
-              ['trailer_short_offset', 212]
+              ['is_long', 1], ['ema_fast_long', 21], ['ema_slow_long', 227], ['ema_fast_long_down_shift', 99],
+              ['is_stop_loss_long', 1], ['stop_loss_percent_long', 57],
+              ['is_trailer_long', 1], ['trailer_long_enter_percent', 78], ['trailer_long_offset', 26], ['is_short', 1],
+              ['ema_fast_short', 13], ['ema_slow_short', 412],
+              ['ema_fast_short_up_shift', 105], ['is_stop_loss_short', 1], ['stop_loss_percent_short', 122],
+              ['is_trailer_short', 1], ['trailer_short_enter_percent', 41],
+              ['trailer_short_offset', 85], ['max_trade_steps', 41]
               ]
 
     config.extend(cc_base)
@@ -105,82 +115,94 @@ def run_live_trade():
     quote = "USDT"
     config = [['base', base],
               ['quote', quote],
-              ['is_long', 1],
-              ['ema_fast_long', 19],
-              ['ema_slow_long', 421],
-              ['ema_fast_long_down_shift', 99],
-              ['is_stop_loss_long', 1],
-              ['stop_loss_percent_long', 38],
-              ['is_short', 0],
-              ['ema_fast_short', 33],
-              ['ema_slow_short', 561],
-              ['ema_fast_short_up_shift', 97],
-              ['is_stop_loss_short', 1],
-              ['stop_loss_percent_short', 59],
-              ['is_trailer_short', 0],
-              ['trailer_short_enter_percent', 31],
-              ['trailer_short_offset', 100]
+              ['is_long', 1], ['ema_fast_long', 27], ['ema_slow_long', 370], ['ema_fast_long_down_shift', 99],
+              ['is_stop_loss_long', 1], ['stop_loss_percent_long', 147],
+              ['is_trailer_long', 1], ['trailer_long_enter_percent', 85], ['trailer_long_offset', 94], ['is_short', 1],
+              ['ema_fast_short', 40], ['ema_slow_short', 282],
+              ['ema_fast_short_up_shift', 102], ['is_stop_loss_short', 1], ['stop_loss_percent_short', 19],
+              ['is_trailer_short', 1], ['trailer_short_enter_percent', 12],
+              ['trailer_short_offset', 89], ['max_trade_steps', 32]
               ]
 
     config.extend(cc_base)
     kwargs = dict(config)
     cc[base + quote] = SimpleNamespace(**kwargs)
 
-    base = "BTC"
+    base = "DOGE"
     quote = "USDT"
     config = [['base', base],
               ['quote', quote],
-              ['is_long', 1],
-              ['ema_fast_long', 38],
-              ['ema_slow_long', 426],
-              ['ema_fast_long_down_shift', 99],
-              ['is_stop_loss_long', 1],
-              ['stop_loss_percent_long', 15],
-              ['is_short', 0],
-              ['ema_fast_short', 35],
-              ['ema_slow_short', 478],
-              ['ema_fast_short_up_shift', 103],
-              ['is_stop_loss_short', 0],
-              ['stop_loss_percent_short', 53],
-              ['is_trailer_short', 0],
-              ['trailer_short_enter_percent', 40],
-              ['trailer_short_offset', 311]
+              ['is_long', 1], ['ema_fast_long', 50], ['ema_slow_long', 171], ['ema_fast_long_down_shift', 99],
+              ['is_stop_loss_long', 1], ['stop_loss_percent_long', 58], ['is_trailer_long', 1],
+              ['trailer_long_enter_percent', 99], ['trailer_long_offset', 21], ['is_short', 1], ['ema_fast_short', 35],
+              ['ema_slow_short', 321], ['ema_fast_short_up_shift', 103], ['is_stop_loss_short', 1],
+              ['stop_loss_percent_short', 63], ['is_trailer_short', 1], ['trailer_short_enter_percent', 24],
+              ['trailer_short_offset', 72], ['max_trade_steps', 38]
+
               ]
 
     config.extend(cc_base)
     kwargs = dict(config)
     cc[base + quote] = SimpleNamespace(**kwargs)
 
-    base = "AVAX"
+    base = "ADA"
     quote = "USDT"
     config = [['base', base],
               ['quote', quote],
-              ['is_long', 1],
-              ['ema_fast_long', 33],
-              ['ema_slow_long', 476],
-              ['ema_fast_long_down_shift', 93],
-              ['is_stop_loss_long', 1],
-              ['stop_loss_percent_long', 59],
-              ['is_short', 1],
-              ['ema_fast_short', 22],
-              ['ema_slow_short', 574],
-              ['ema_fast_short_up_shift', 98],
-              ['is_stop_loss_short', 1],
-              ['stop_loss_percent_short', 32],
-              ['is_trailer_short', 1],
-              ['trailer_short_enter_percent', 248],
-              ['trailer_short_offset', 22]
+              ['is_long', 1], ['ema_fast_long', 65], ['ema_slow_long', 346], ['ema_fast_long_down_shift', 99],
+              ['is_stop_loss_long', 1], ['stop_loss_percent_long', 168], ['is_trailer_long', 1],
+              ['trailer_long_enter_percent', 96], ['trailer_long_offset', 87], ['is_short', 1], ['ema_fast_short', 35],
+              ['ema_slow_short', 331], ['ema_fast_short_up_shift', 101], ['is_stop_loss_short', 1],
+              ['stop_loss_percent_short', 138], ['is_trailer_short', 1], ['trailer_short_enter_percent', 72],
+              ['trailer_short_offset', 15], ['max_trade_steps', 59]
+
+              ]
+
+    config.extend(cc_base)
+    kwargs = dict(config)
+    cc[base + quote] = SimpleNamespace(**kwargs)
+    #
+    base = "XRP"
+    quote = "USDT"
+    config = [['base', base],
+              ['quote', quote],
+
+              ['is_long', 1], ['ema_fast_long', 20], ['ema_slow_long', 441], ['ema_fast_long_down_shift', 99],
+              ['is_stop_loss_long', 1], ['stop_loss_percent_long', 23], ['is_trailer_long', 1],
+              ['trailer_long_enter_percent', 33], ['trailer_long_offset', 60], ['is_short', 1], ['ema_fast_short', 105],
+              ['ema_slow_short', 366], ['ema_fast_short_up_shift', 108], ['is_stop_loss_short', 1],
+              ['stop_loss_percent_short', 78], ['is_trailer_short', 1], ['trailer_short_enter_percent', 78],
+              ['trailer_short_offset', 24], ['max_trade_steps', 26]
+
               ]
 
     config.extend(cc_base)
     kwargs = dict(config)
     cc[base + quote] = SimpleNamespace(**kwargs)
 
-    from_dt = datetime.datetime.utcnow() - datetime.timedelta(hours=700)
-    comression = 60
+    # base = "SOL"
+    # quote = "USDT"
+    # config = [['base', base],
+    #           ['quote', quote],
+    #
+    #           ['is_long', 1], ['ema_fast_long', 27], ['ema_slow_long', 433], ['ema_fast_long_down_shift', 99],
+    #           ['is_stop_loss_long', 1], ['stop_loss_percent_long', 82], ['is_trailer_long', 1],
+    #           ['trailer_long_enter_percent', 101], ['trailer_long_offset', 10], ['is_short', 1],
+    #           ['ema_fast_short', 11], ['ema_slow_short', 159], ['ema_fast_short_up_shift', 103],
+    #           ['is_stop_loss_short', 1], ['stop_loss_percent_short', 162], ['is_trailer_short', 1],
+    #           ['trailer_short_enter_percent', 60], ['trailer_short_offset', 17], ['max_trade_steps', 35]
+    #
+    #           ]
+    #
+    # config.extend(cc_base)
+    # kwargs = dict(config)
+    # cc[base + quote] = SimpleNamespace(**kwargs)
 
-    # from_dt = datetime.datetime.utcnow() - datetime.timedelta(minutes=700)
-    # comression = 1
+    # from_dt = datetime.datetime.utcnow() - datetime.timedelta(hours=700)
+    # comression = 60
+
+    from_dt = datetime.datetime.utcnow() - datetime.timedelta(minutes=700)
+    comression = 1
 
     df_dict = {}
     for k in cc:
@@ -196,14 +218,12 @@ def run_live_trade():
                         start_price=start_price,
                         is_live_run=True,
                         )
-    cerebro.broker.setcommission(commission=0.075)
+    cerebro.broker.setcommission(commission=0.00045)
 
-    # cerebro.addsizer(bt.sizers.PercentSizer, percents=42)
-    # cerebro.addsizer(bt.sizers.AllInSizer)
-    cerebro.addsizer(ESMSizer, symbols=list(df_dict.keys()), max_percent=70, start_cash=USDT_asset + market_value, is_live_run=True)
+    cerebro.addsizer(OnePositionSizer, symbols=list(df_dict.keys()), percent=80, start_cash=60, is_live_run=True)
 
     # cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trade_analyzer")
-    cerebro.addanalyzer(btanalyzers.SharpeRatio, _name="sharpe", riskfreerate=0.2)
+    # cerebro.addanalyzer(btanalyzers.SharpeRatio, _name="sharpe", riskfreerate=0.2)
     # cerebro.addanalyzer(btanalyzers.Transactions, _name="trans")
     # cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     log("Cerebro RUN", level=10)
@@ -213,7 +233,7 @@ def run_live_trade():
 
 
 if __name__ == "__main__":
-    log(f"TRADE_SERVER_FUTURES VERSION: 1.0.25", level=10)
+    log(f"TRADE_SERVER_FUTURES VERSION: FAST WIN 2.0.28", level=10)
     log("Public IP (for Binance api)", get_public_ip(), level=10)
     # cProfile.run('run_live_trade()')
     run_live_trade()

@@ -385,8 +385,12 @@ def get_public_ip():
         return None
 
 
-def get_futures_ticker(client, base, quote="USDT"):
+def get_futures_ticker(client, base, quote="USDC"):
     return float(client.futures_symbol_ticker(symbol=base+quote)['price'])
+
+
+def get_futures_ticker_BNFC(client):
+    return float(client.futures_symbol_ticker(symbol="BNFCBNB")['price'])
 
 
 def get_futures_positions(client, is_print=False, is_return_array=False):
@@ -399,13 +403,13 @@ def get_futures_positions(client, is_print=False, is_return_array=False):
 
     table = PrettyTable()
     table.title = "Open Perpetual Futures Positions"
-    table.field_names = ["Symbol", "Position", "Entry Price", "USDT_Enter_Value", "USDT_Market_Value", "Unrealized PnL (USDT)"]
+    table.field_names = ["Symbol", "Position", "Entry Price", "USDC_Enter_Value", "USDC_Market_Value", "Unrealized PnL (USDC)"]
     table.align["Symbol"] = "c"
     table.align["Position"] = "r"
     table.align["Entry Price"] = "r"
-    table.align["USDT_Enter_Value"] = "r"
-    table.align["USDT_Market_Value"] = "r"
-    table.align["Unrealized PnL (USDT)"] = "r"
+    table.align["USDC_Enter_Value"] = "r"
+    table.align["USDC_Market_Value"] = "r"
+    table.align["Unrealized PnL (USDC)"] = "r"
     # {'symbol': 'ETHUSDT',
     # 'initialMargin': '22.97904000',
     # 'maintMargin': '0.09191616',
@@ -479,7 +483,7 @@ def get_futures_positions(client, is_print=False, is_return_array=False):
     ])
 
     if is_print:
-        log("\n",table, level=10)
+        log("\n", table, level=10)
     if is_return_array:
         return ret_array
     else:
@@ -514,7 +518,7 @@ def get_asset_balance(client, asset, is_print=False, is_return_array=False):
     table.align["crossWalletBalance"] = "r"
     table.align["availableBalance"] = "r"
     table.align["crossUnPnl"] = "r"
-    table.align["USDT_Value"] = "r"
+    table.align["USDC_Value"] = "r"
 
     ret_asset = 0.0
     ret_BNB = 0.0
@@ -523,16 +527,24 @@ def get_asset_balance(client, asset, is_print=False, is_return_array=False):
     total_crossUnPnl = 0.0
     total_USDT_Value = 0.0
     for item in data:
-        if float(item['crossWalletBalance']) != 0 or float(item['balance']) != 0:
-            if item['asset'] == "USDT":
-                USDT_Value = round(float(item['availableBalance']) ,4)
+        if float(item['balance']) != 0:
+            if item['asset'] == "USDC":
+                USDT_Value = round(float(item['balance']), 4)
+            elif item['asset'] == "BNFCR":
+                USDT_Value = round(float(item['crossUnPnl']), 4)
             else:
-                USDT_Value = round(get_futures_ticker(client, item['asset']) * float(item['availableBalance']), 4)
+
+                try:
+                    p = get_futures_ticker(client, item['asset'])
+                except:
+                    p = 1
+
+                USDT_Value = round(p * float(item['balance']), 4)
 
             table.add_row([item['asset'],
                            item['balance'],
                            item['crossWalletBalance'],
-                           item['availableBalance'],
+                           0.0000000,
                            item['crossUnPnl'],
                            USDT_Value
                            ])
@@ -543,16 +555,16 @@ def get_asset_balance(client, asset, is_print=False, is_return_array=False):
                 [item['asset']],
                 [item['balance']],
                 [item['crossWalletBalance']],
-                [item['availableBalance']],
+                [0.0],
                 [item['crossUnPnl']],
                 [USDT_Value]
             ])
             if item['asset'] == asset:
-                ret_asset = float(item['availableBalance'])
+                ret_asset = float(item['balance'])
             if item['asset'] == "BNB":
-                ret_BNB = float(item['availableBalance'])
+                ret_BNB = float(item['balance'])
             else:
-                ret_other[item['asset']] = float(item['availableBalance'])
+                ret_other[item['asset']] = float(item['balance'])
 
     table.add_row([
         "TOTAL:",

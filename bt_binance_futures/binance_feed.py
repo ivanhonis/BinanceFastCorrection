@@ -40,17 +40,18 @@ class BinanceData(DataBase):
         # print("Ok", self.timeframe, self.compression, self.start_date, self._store, self.LiveBars, self.symbol)
 
     def _handle_kline_socket_message(self, msg):
-        self.set_life_signal(key="BinanceData1" + str(self.symbol),
-                             cclass="BinanceData",
-                             method="_handle_kline_socket_message",
-                             msg1=str(self.symbol),
-                             msg2=str(msg['e']),
-                             msg3=""
-                             )
+        # print(msg)
+        # self.set_life_signal(key="BinanceData1" + str(self.symbol),
+        #                      cclass="BinanceData",
+        #                      method="_handle_kline_socket_message",
+        #                      msg1=str(self.symbol),
+        #                      msg2=str(msg['e']),
+        #                      msg3=""
+        #                      )
 
-        """https://binance-docs.github.io/apidocs/spot/en/#kline-candlestick-streams"""
-        if msg['e'] == 'continuous_kline':
-            if msg['k']['x']:  # Is closed
+        # """https://binance-docs.github.io/apidocs/spot/en/#kline-candlestick-streams"""
+        if msg['e'] == 'continuous_kline' and msg['k']['x']:
+            # if msg['k']['x']:  # Is closed
                 # {'t': 1717606380000,
                 # 'T': 1717606439999,
                 # 'i': '1m',
@@ -68,9 +69,9 @@ class BinanceData(DataBase):
                 # 'Q': '2838844.68270',
                 # 'B': '0'}
 
-                kline = self._parser_to_kline(msg['k']['t'], msg['k'])
-                # print(kline)
-                self._data.extend(kline.values.tolist())
+            kline = self._parser_to_kline(msg['k']['t'], msg['k'])
+            # print(kline)
+            self._data.extend(kline.values.tolist())
         elif msg['e'] == 'error':
             raise msg
 

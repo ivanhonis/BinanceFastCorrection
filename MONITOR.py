@@ -309,7 +309,7 @@ class Monitor:
             self.p[sid]['fig'].canvas.manager.set_window_title("Monitor - Binance ESM    " + self.symbols[sid])
 
             # TEXT
-            self.p[sid]['ax14'].clear()
+            self.p[sid]['ax14'].reset()
             self.p[sid]['ax14'].grid(color='#666666', linestyle='', linewidth=0)
             self.p[sid]['ax14'].get_yaxis().set_ticks([])
             self.p[sid]['ax14'].xaxis.set_major_formatter(plt.NullFormatter())
@@ -322,7 +322,7 @@ class Monitor:
                 self.p[sid]['ax14'].text(0.009, 0.12 * (i - 1) + 0.2, self.meta[sid][key], style='normal', fontsize=fsize, color="#000000")
 
             # chart
-            self.p[sid]['ax11'].clear()
+            self.p[sid]['ax11'].reset()
             self.p[sid]['ax11'].margins(x=0)
             self.p[sid]['ax11'].xaxis.set_major_formatter(plt.NullFormatter())
             self.p[sid]['ylim_min'] = min(self.low_history[sid])
@@ -409,7 +409,7 @@ class Monitor:
             #
             # # ZOOM
             #
-            self.p[sid]['ax12'].clear()
+            self.p[sid]['ax12'].reset()
             self.p[sid]['ax12'].margins(x=0)
             self.p[sid]['ax12'].xaxis.set_major_formatter(plt.NullFormatter())
             self.p[sid]['ax12'].set_facecolor('#e6fff2')
@@ -447,7 +447,7 @@ class Monitor:
             self.p[sid]['ax12'].plot(self.zoom_xaxis, self.ema_slow_long_data_history[sid][-self.zoom:], 'g-', alpha=0.8, linewidth=2)
             self.p[sid]['ax12'].plot(self.zoom_xaxis, self.ema_fast_long_down_shift_data_history[sid][-self.zoom:], 'g--', alpha=0.8, linewidth=1)
 
-            self.p[sid]['ax13'].clear()
+            self.p[sid]['ax13'].reset()
             self.p[sid]['ax13'].margins(x=0)
             self.p[sid]['ax13'].xaxis.set_major_formatter(plt.NullFormatter())
             self.p[sid]['ax13'].set_facecolor('#ffe6e6')

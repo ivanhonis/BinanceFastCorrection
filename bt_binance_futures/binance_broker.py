@@ -119,7 +119,7 @@ class BinanceBroker(BrokerBase):
 
     def _handle_user_socket_message(self, msg):
 
-        time.sleep(0.75)
+        time.sleep(0.05)
         self.log(msg, level=1)
         if msg['e'] == 'error':
             raise msg
@@ -141,7 +141,7 @@ class BinanceBroker(BrokerBase):
 
         # print("_handle_user_socket_message FILLED" * 5)
         # print(msg)
-        """https://binance-docs.github.io/apidocs/spot/en/#payload-order-update"""
+        # """https://binance-docs.github.io/apidocs/spot/en/#payload-order-update"""
 
         # {
         #     'e': 'ACCOUNT_UPDATE', 'T': 1717804802111, 'E': 1717804802112,
@@ -256,10 +256,10 @@ class BinanceBroker(BrokerBase):
         ttype = self._ORDER_TYPES.get(exectype, ORDER_TYPE_MARKET)
         symbol = data._name
 
-        self.set_life_signal(key="BinanceBroker1" + str(self.symbol),
+        self.set_life_signal(key="BinanceBroker1" + str(symbol),
                              cclass="BinanceBroker",
                              method="_futures_submit",
-                             msg1=str(self.symbol),
+                             msg1=str(symbol),
                              msg2=str(side),
                              msg3=str(size)
                              )

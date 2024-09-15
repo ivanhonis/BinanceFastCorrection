@@ -1,3 +1,4 @@
+import random
 import sys
 import time
 import os
@@ -129,14 +130,14 @@ class CollectData:
         self.close = round(float(data.close[0]), 1)
 
         self.add_que(self.decision, int(0))
-        if self.is_live_run:
-            self.set_life_signal(key="CollectData_2" + str(self.symbol),
-                                 cclass="CollectData",
-                                 method="add_data",
-                                 msg1=str(self.symbol),
-                                 msg2="",
-                                 msg3=""
-                                 )
+        # if self.is_live_run:
+        #     self.set_life_signal(key="CollectData_2" + str(self.symbol),
+        #                          cclass="CollectData",
+        #                          method="add_data",
+        #                          msg1=str(self.symbol),
+        #                          msg2="",
+        #                          msg3=""
+        #                          )
 
     def add_meta(self, field, value):
         if self.is_live_run:
@@ -167,6 +168,93 @@ class CollectData:
         return save_data
             # with open('data_transfer_for_process.pickle', 'wb') as handle:
             #     pickle.dump(save_data_form, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+class OnePositionSizer(bt.Sizer):
+
+    def __init__(self, symbols, percent=80, start_cash=100000, is_live_run=False):
+        self.percent = percent / 100
+        self.start_cash = start_cash
+        self.is_live_run = is_live_run
+
+        self.logger = Logger()
+        self.log = self.logger.log
+
+        self.min_qty = {}
+        self.max_qty = {}
+        self.step_size = {}
+        self.min_notional = {}
+        self.symbol_info = {}
+
+        self.symbols = symbols
+        self.num_of_symbols = len(self.symbols)
+        self.set_life_signal = object
+
+    def has_open_position(self):
+        # Check if there is any open position across all assets
+        for idata, position in self.broker.positions.items():
+            # for position in self.broker.positions:
+            if position.size != 0:
+                return True
+        return False
+
+    def is_valid_quantity(self, symbol, qty):
+        if not (self.min_qty[symbol] <= abs(qty) <= self.max_qty[symbol]):
+            return False
+        return True
+
+    def round_to_step(self, symbol, qty):
+        return round(qty / self.step_size[symbol]) * self.step_size[symbol]
+
+    def round_down_to_step(self, symbol, qty):
+        round_down = (qty // self.step_size[symbol]) * self.step_size[symbol]
+        return round_step_size(round_down, self.step_size[symbol])
+
+    def start(self):
+        if self.is_live_run:
+            for symbol in self.symbols:
+                self.log(f"Get market info: {symbol}", level=10)
+                self.symbol_info[symbol] = self.broker.futures_symbol_info(symbol)
+                filter_params = [f for f in self.symbol_info[symbol]['filters'] if f.get('filterType') == 'MARKET_LOT_SIZE'][0]
+                self.min_qty[symbol] = float(filter_params.get('minQty', 0))
+                self.max_qty[symbol] = float(filter_params.get('maxQty', float('inf')))
+                self.step_size[symbol] = float(filter_params.get('stepSize', 1))
+                filter_params = [f for f in self.symbol_info[symbol]['filters'] if f.get('filterType') == 'MIN_NOTIONAL'][0]
+                self.min_notional[symbol] = float(filter_params.get('notional', 0))
+
+    def _getsizing(self, comminfo, cash, data, isbuy):
+        symbol = data._name
+
+        # if self.has_open_position():
+        #     return 0
+
+        if self.is_live_run:
+            # size = (cash * self.percent) / data.close[0]
+            size = self.start_cash / data.close[0]
+            size = self.round_to_step(symbol, size)
+
+            if size == 0:
+                self.log(f"Sizer: Trade failed {symbol} Size 0")
+                print(f"Sizer: Trade failed {symbol} Size 0")
+                size = 0
+            elif not self.is_valid_quantity(symbol, size):
+                self.log(f"Sizer: Trade failed {symbol} invalid size (min, max, stepsize)")
+                size = None
+            elif self.min_notional[symbol] > (abs(size) * data.close[0]):
+                self.log(f"Sizer: Trade failed {symbol} min_notional")
+                size = None
+
+        else:
+            size = int((cash * self.percent) / 4) // data.close[0]
+
+        return size
+
+    def set(self, strategy, broker):
+        self.strategy = strategy
+        self.broker = broker
+        if self.is_live_run:
+            self.set_life_signal = self.broker.set_life_signal
+        self.start()
 
 
 class ESMSizer(bt.Sizer):
@@ -242,8 +330,6 @@ class ESMSizer(bt.Sizer):
         symbol = data._name
 
         if self.is_live_run:
-
-
 
             # ha van befejezetlen order akkor nem enged rányitni.
 
@@ -413,10 +499,13 @@ class EmaShiftMultiStrategy(bt.Strategy):
 
     def __init__(self, config, start_position={}, start_price={}, is_live_run=False, total_data_len=100000):
 
+        self.all_symbols = []
         self.cc = config
         self.start_position = start_position
         self.start_price = start_price
         self.is_live_run = is_live_run
+
+        self.closed_trade_count = 0
 
         self.logger = Logger()
         self.log = self.logger.log
@@ -461,24 +550,36 @@ class EmaShiftMultiStrategy(bt.Strategy):
         self.end_close = False  # futás végén lezárja a poziiciiót
 
         # Symboltól függő változók
-        v_start = [['long_stop_price', 0],
-                  ['short_stop_price', 1000000000000.0],
-                  ["trailer_short_activation_price", 0.0],
-                  ["trailer_short_active", False],
-                  ["trailer_short_lowest_price", 1000000000000.0],
-                  ["trailer_short_stop_price", 0.0],
-                  ["last_long_order", None],
-                  ["last_short_order", None],
-                  ["last_long_qty", 0.0],
-                  ["last_long_price", 0.0],
-                  ["last_short_qty", 0.0],
-                  ["trailer_short_stop_price", 0.0],
-                  ["last_short_price", 0.0],
-                  ["popen", ""]]
+        v_start = [
+            ['long_stop_price', 0],
+            ['short_stop_price', 1000000000000.0],
+
+            ["trailer_long_activation_price", 0.0],
+            ["trailer_long_active", False],
+            ["trailer_long_highest_price", 0.0],
+            ["trailer_long_stop_price", 0.0],
+
+            ["trailer_short_activation_price", 0.0],
+            ["trailer_short_active", False],
+            ["trailer_short_lowest_price", 1000000000000.0],
+            ["trailer_short_stop_price", 0.0],
+
+            ["last_long_order", None],
+            ["last_short_order", None],
+            ["last_long_qty", 0.0],
+            ["last_long_price", 0.0],
+            ["last_short_qty", 0.0],
+            ["last_short_price", 0.0],
+            ["trade_steps", 0],
+            ["dn_steps_count", 0],
+            ["in_position", False],
+        ]
 
         kwargs = dict(v_start)
         # v_start_obj = SimpleNamespace(**kwargs)
 
+        self.in_position = False
+        self.position_slots = 4
         self.v = {}
         self.cd = {}
         self.symbol_profit = {}
@@ -512,7 +613,8 @@ class EmaShiftMultiStrategy(bt.Strategy):
             now = datetime.now()
             self.tasks = []
             for i in range(0, 24):
-                for j in [5, 15, 25, 35, 45, 55]:
+                # for j in [5]:
+                for j in range(1, 59, 3):
                     self.tasks.append(
                         [datetime(now.year, now.month, now.day, hour=i, minute=j), self.scheduled_life_signals]
                     )
@@ -527,18 +629,21 @@ class EmaShiftMultiStrategy(bt.Strategy):
             #     [datetime(now.year, now.month, now.day, hour=now.hour, minute=now.minute + 2), self.scheduled_account_info]
             # )
 
-            self.scheduler = TaskScheduler(self.tasks, set_life_signal=self.set_life_signal)
-            self.scheduler.start()
+            # self.scheduler = TaskScheduler(self.tasks, set_life_signal=self.set_life_signal)
+            # self.scheduler.start()
 
     def scheduled_life_signals(self):
         self.broker.save_life_signals()
-        self.gdc.delete_file_in_folder(file_name='life_signals.txt')
-        self.gdc.upload_file(file_name='/data_transfer/life_signals.txt')
+        try:
+            self.gdc.delete_file_in_folder(file_name='life_signals.txt')
+            self.gdc.upload_file(file_name='/data_transfer/life_signals.txt')
+        except:
+            pass
 
     def scheduled_account_info(self):
         self.save_collected_data()
 
-        ret_array_balance = get_asset_balance(self.bclient, asset="USDT", is_print=False, is_return_array=True)
+        ret_array_balance = get_asset_balance(self.bclient, asset="USDC", is_print=False, is_return_array=True)
         ret_array_position = get_futures_positions(self.bclient, is_print=False, is_return_array=True)
 
         self.binance_excel_saver.save_balance_data(ret_array_balance)
@@ -550,11 +655,15 @@ class EmaShiftMultiStrategy(bt.Strategy):
         for cd_key in self.cd:
             fn0, fn1 = self.create_chart(cd_key, self.cc[cd_key])
 
-            self.gdc.delete_file_in_folder(file_name=fn0)
-            self.gdc.upload_file(file_name='/data_transfer/' + fn0)
 
-            self.gdc.delete_file_in_folder(file_name=fn1)
-            self.gdc.upload_file(file_name='/data_transfer/' + fn1)
+            try:
+                self.gdc.delete_file_in_folder(file_name=fn0)
+                self.gdc.upload_file(file_name='/data_transfer/' + fn0)
+
+                self.gdc.delete_file_in_folder(file_name=fn1)
+                self.gdc.upload_file(file_name='/data_transfer/' + fn1)
+            except:
+                pass
 
     def create_chart(self, dn, c):
         df = pd.DataFrame({
@@ -640,7 +749,18 @@ class EmaShiftMultiStrategy(bt.Strategy):
             else:
                 self.log(f"Attribute: {prop}", level=10)
 
+    def in_position_count(self):
+        ret = 0
+        for dn in self.all_symbols:
+            if self.v[dn].in_position:
+                ret += 1
+        return ret
+
     def start(self):
+        self.all_symbols = []
+        for data in self.datas:
+            self.all_symbols.append(data._name)
+
         if self.is_live_run:
             # beállítom a kezdő portfolió értékeket
             for data in self.datas:
@@ -728,6 +848,10 @@ class EmaShiftMultiStrategy(bt.Strategy):
     def s_close(self, data, stype):
         dn = data._name
         c = self.cc[dn]
+
+        if not self.v[dn].in_position:
+            return
+
         self.log("", level=1)
         self.log(datetime.now(), num2date(data.datetime[0]), "Close", dn, level=1)
         self.log("-" * 80, level=1)
@@ -777,14 +901,32 @@ class EmaShiftMultiStrategy(bt.Strategy):
         # else:
         #     print("Close nem lehet position size 0 esetén !!!!!!!", stype , "-" * 80)
 
-        self.v[dn].trailer_short_active = False
         self.v[dn].long_stop_price = 0.0
+        self.v[dn].long_take_price = 0.0
+
         self.v[dn].short_stop_price = 1000000000000.0
+        self.v[dn].short_take_price = 1000000000000.0
+
+        self.v[dn].trailer_long_active = False
+        self.v[dn].trailer_long_activation_price = 0.0
+        self.v[dn].trailer_long_highest_price = 0.0
+        self.v[dn].trailer_long_stop_price = 0.0
+
+        self.v[dn].trailer_short_active = False
+        self.v[dn].trailer_short_activation_price = 0.0
         self.v[dn].trailer_short_lowest_price = 1000000000000.0
         self.v[dn].trailer_short_stop_price = 0.0
-        self.close(data)
+
+        x_close = self.close(data)
+        print("CLOSE", dn, stype)
+        print(x_close)
+        print("-" * 80)
 
         self.cd[dn].decision[0] = 2  # 2= Close Stop Loss
+        self.in_position = False
+        self.v[dn].in_position = False
+        self.v[dn].trade_steps = 0
+
         # self.cd[dn].add_meta('line1', self.get_positon_text())
 
         # if c.worker_no == 0:
@@ -795,6 +937,10 @@ class EmaShiftMultiStrategy(bt.Strategy):
     def s_buy(self, data):
         dn = data._name
         c = self.cc[dn]
+
+        if self.v[dn].in_position or self.in_position_count() >= self.position_slots:
+            return
+
         self.log("", level=1)
         self.log(datetime.now(), num2date(data.datetime[0]), "s_buy", dn, level=1)
         self.log("-" * 80, level=1)
@@ -806,13 +952,24 @@ class EmaShiftMultiStrategy(bt.Strategy):
 
         # Stop loss price set
         self.v[dn].long_stop_price = rsrc * (1 - (c.stop_loss_percent_long / 1000))
+        # self.v[dn].long_take_price = rsrc * (1 + (c.take_percent_long / 1000))
+
+        # Trailer sets
+        self.v[dn].trailer_long_activation_price = rsrc * (1 + (c.trailer_long_enter_percent / 1000))
+        self.v[dn].trailer_long_active = False
+        self.v[dn].trailer_long_highest_price = 0.0
 
         # print("BUY SIZE:",self.v[dn].last_long_qty)
         # self.v[dn].last_long_order = self.buy(data, size=self.v[dn].last_long_qty)
         self.v[dn].last_long_order = self.buy(data)
-        # print("BUY")
-
-        self.cd[dn].decision[0] = 1  # 1= BUY
+        print("BUY", dn)
+        print(self.v[dn].last_long_order)
+        print("-" * 80)
+        if self.v[dn].last_long_order:
+            self.v[dn].trade_steps = 0
+            self.cd[dn].decision[0] = 1  # 1= BUY
+            self.in_position = True
+            self.v[dn].in_position = True
 
         # self.v[dn].popen = (f"long , {dn},{self.data.datetime.datetime(0) + dt.timedelta(hours=1)}, {data.close[0] * self.v[dn].last_long_qty}, "
         #                     f"broker cash: {self.broker.get_cash()}")
@@ -820,6 +977,10 @@ class EmaShiftMultiStrategy(bt.Strategy):
     def s_sell(self, data):
         dn = data._name
         c = self.cc[dn]
+
+        if self.v[dn].in_position or self.in_position_count() >= self.position_slots:
+            return
+
         self.log("", level=1)
         self.log(datetime.now(), num2date(data.datetime[0]), "s_sell", dn, level=1)
         self.log("-" * 80, level=1)
@@ -831,6 +992,7 @@ class EmaShiftMultiStrategy(bt.Strategy):
 
         # Stop Loss price set
         self.v[dn].short_stop_price = rsrc * (1 + (c.stop_loss_percent_short / 1000))
+        # self.v[dn].short_take_price = rsrc * (1 - (c.take_percent_short / 1000))
 
         # Trailer sets
         self.v[dn].trailer_short_activation_price = rsrc * (1 - (c.trailer_short_enter_percent / 1000))
@@ -839,9 +1001,17 @@ class EmaShiftMultiStrategy(bt.Strategy):
 
         # self.v[dn].last_short_order = self.sell(data, size=self.v[dn].last_short_qty)
         self.v[dn].last_short_order = self.sell(data)
-        # print("SELL SIZE:",self.v[dn].last_short_qty)
+        print("SELL", dn)
+        print(self.v[dn].last_short_order)
+        print("-" * 80)
 
-        self.cd[dn].decision[0] = -1  # -1= sell
+        if self.v[dn].last_short_order:
+            self.v[dn].trade_steps = 0
+
+            self.cd[dn].decision[0] = -1  # -1= sell
+            self.in_position = True
+            self.v[dn].in_position = True
+
 
         # self.v[dn].popen = (f"short, {dn},{self.data.datetime.datetime(0) + dt.timedelta(hours=1)}, {data.close[0] * self.v[dn].last_short_qty}, "
         #                     f"broker cash: {self.broker.get_cash()}")
@@ -863,6 +1033,8 @@ class EmaShiftMultiStrategy(bt.Strategy):
     #             self.config_time_stamp = config_obj.time_stamp
 
     def pine_ema(self, src, length, last_ssum):
+
+        # print("pine_ema", src, length, last_ssum)
 
         alpha = round(2 / (length + 1), 8)
         if self.steps_count == 0:
@@ -890,6 +1062,8 @@ class EmaShiftMultiStrategy(bt.Strategy):
         dn = data._name
         c = self.cc[dn]
 
+        # print(c)
+
         # if dn == "ETHUSDT":
         #     print(dn, num2date(data.datetime[0]), data.close[0], self.is_live_data())
         #     return
@@ -897,6 +1071,7 @@ class EmaShiftMultiStrategy(bt.Strategy):
         #     return
 
         rsrc = self.rsrc(data)
+        # print(dn, data.close[0], rsrc)
         if self.steps_count == 0:
             ema_fast_long_data = rsrc
             ema_fast_long_down_shift_data = round(ema_fast_long_data * (c.ema_fast_long_down_shift / 100), 8)
@@ -913,16 +1088,21 @@ class EmaShiftMultiStrategy(bt.Strategy):
             ema_fast_short_up_shift_data = ema_fast_short_data * (c.ema_fast_short_up_shift / 100)
             ema_slow_short_data = self.pine_ema(rsrc, c.ema_slow_short, self.cd[dn].ema_slow_short_data_history[0])
 
-        # if self.c.worker_no == 0:
-        #     print(f"{self.data.datetime.datetime(0)}; "
-        #           f"{self.data.open[0]}; "
-        #           f"{self.data.high[0]}; "
-        #           f"{self.data.low[0]}; "
-        #           f"{self.rsrc}; "
+        # if 0 == 0:
+        #     print(f"{data.datetime.datetime(0)}; "
+        #           f"{data.open[0]}; "
+        #           f"{data.high[0]}; "
+        #           f"{data.low[0]}; "
+        #           f"{rsrc}; "
         #           f"{ema_fast_long_data}; "
         #           f"{ema_fast_long_down_shift_data}; "
-        #           f"{ema_slow_long_data}")
-        portfoli_value = self.position_value()
+        #           f"{ema_slow_long_data}"
+        #           f"{ema_fast_short_data}; "
+        #           f"{ema_fast_short_up_shift_data}; "
+        #           f"{ema_slow_short_data}"
+        #           )
+
+        portfolio_value = self.position_value()
 
         self.cd[dn].add_data(data,
                              ema_fast_long_data=ema_fast_long_data,
@@ -931,10 +1111,15 @@ class EmaShiftMultiStrategy(bt.Strategy):
                              ema_fast_short_data=ema_fast_short_data,
                              ema_fast_short_up_shift_data=ema_fast_short_up_shift_data,
                              ema_slow_short_data=ema_slow_short_data,
-                             portfolio_value=portfoli_value,
+                             portfolio_value=portfolio_value,
                              )
-        if data._name == self.datas[0]._name:
+
+        # for data in self.datas:
+        #     print("Data manager v steps count", data._name, self.v[data._name].dn_steps_count)
+
+        if data._name == self.datas[len(self.datas) - 1]._name:
             self.steps_count += 1
+
 
         # if self.c.worker_no == 0:
         #     print(self.cd.ema_fast_long_data_history)
@@ -964,21 +1149,28 @@ class EmaShiftMultiStrategy(bt.Strategy):
         dt_array = []
         for data in self.datas:
             dt_array.append(data.datetime[0])
-
         arrived_data = self.select_diff_datetime(dt_array)
 
         for ad in arrived_data:
             data = self.datas[ad]
             dn = data._name
 
-            if self.is_live_run:
-                self.set_life_signal(key="Strategy_next1_" + str(dn),
-                                     cclass="EmaShiftMultiStrategy",
-                                     method="next",
-                                     msg1=str(dn),
-                                     msg2=str(str(data.close[0])),
-                                     msg3=""
-                                     )
+            if self.v[dn].in_position:
+                self.v[dn].trade_steps += 1
+            else:
+                self.v[dn].trade_steps = 0
+
+            self.v[dn].dn_steps_count += 1
+            # print(dn, data.close[0])
+            #
+            # if self.is_live_run:
+            #     self.set_life_signal(key="Strategy_next1_" + str(dn),
+            #                          cclass="EmaShiftMultiStrategy",
+            #                          method="next",
+            #                          msg1=str(dn),
+            #                          msg2=str(str(data.close[0])),
+            #                          msg3=""
+            #                          )
 
             self.log(f"Market data recieved: {num2date(data.datetime[0])} {dn}, {data.close[0]}", level=5)
             c = self.cc[dn]
@@ -988,63 +1180,63 @@ class EmaShiftMultiStrategy(bt.Strategy):
             self.data_manager(data)
 
             # if self.c.worker_no == 0:
+            # if 1 == 1:
             #     print("-" * 80)
-            #     print(self.cd.ema_fast_long_down_shift_data_history[0])
-            #     print(self.cd.ema_fast_long_down_shift_data_history[1])
-            #     print(self.cd.ema_slow_long_data_history[0])
-            #     print(self.cd.ema_slow_long_data_history[1])
+            #     print(dn)
+            #     print(self.cd[dn].ema_fast_long_down_shift_data_history[0])
+            #     print(self.cd[dn].ema_fast_long_down_shift_data_history[1])
+            #     print(self.cd[dn].ema_slow_long_data_history[0])
+            #     print(self.cd[dn].ema_slow_long_data_history[1])
 
             if self.steps_count < 2:
                 continue
-            elif self.steps_count == 699:
-                if self.is_live_run:
-                    self.save_collected_data()
-                    self.scheduled_account_info()
-
+            # elif self.is_live_run and self.steps_count == 699:
+            #     if dn == list(self.cd.keys())[0]:
+            #         self.save_collected_data()
+            #         self.scheduled_account_info()
 
             long_signal = (round(self.cd[dn].ema_fast_long_down_shift_data_history[0], 8) > round(self.cd[dn].ema_slow_long_data_history[0], 8)and
                            round(self.cd[dn].ema_fast_long_down_shift_data_history[1], 8) <= round(self.cd[dn].ema_slow_long_data_history[1], 8))
-            long_close = (round(self.cd[dn].ema_fast_long_down_shift_data_history[0], 8) < round(self.cd[dn].ema_slow_long_data_history[0], 8) and
-                      round(self.cd[dn].ema_fast_long_down_shift_data_history[1], 8) >= round(self.cd[dn].ema_slow_long_data_history[1], 8))
+            # long_close = (round(self.cd[dn].ema_fast_long_down_shift_data_history[0], 8) < round(self.cd[dn].ema_slow_long_data_history[0], 8) and
+            #           round(self.cd[dn].ema_fast_long_down_shift_data_history[1], 8) >= round(self.cd[dn].ema_slow_long_data_history[1], 8))
 
             short_signal = (round(self.cd[dn].ema_fast_short_up_shift_data_history[0], 8) < round(self.cd[dn].ema_slow_short_data_history[0], 8) and
                             round(self.cd[dn].ema_fast_short_up_shift_data_history[1], 8) >= round(self.cd[dn].ema_slow_short_data_history[1], 8))
-            short_close = (round(self.cd[dn].ema_fast_short_up_shift_data_history[0], 8) > round(self.cd[dn].ema_slow_short_data_history[0], 8) and
-                           round(self.cd[dn].ema_fast_short_up_shift_data_history[1], 8) <= round(self.cd[dn].ema_slow_short_data_history[1], 8))
+            # short_close = (round(self.cd[dn].ema_fast_short_up_shift_data_history[0], 8) > round(self.cd[dn].ema_slow_short_data_history[0], 8) and
+            #                round(self.cd[dn].ema_fast_short_up_shift_data_history[1], 8) <= round(self.cd[dn].ema_slow_short_data_history[1], 8))
 
-            if self.is_live_run:
-                self.set_life_signal(key="Strategy_next2_" + str(dn) + "long_signal",
-                                     cclass="EmaShiftMultiStrategy",
-                                     method="next",
-                                     msg1=str(dn),
-                                     msg2=str("long_signal"),
-                                     msg3=str(long_signal)
-                                     )
+            # if self.is_live_run:
+                # self.set_life_signal(key="Strategy_next2_" + str(dn) + "long_signal",
+                #                      cclass="EmaShiftMultiStrategy",
+                #                      method="next",
+                #                      msg1=str(dn),
+                #                      msg2=str("long_signal"),
+                #                      msg3=str(long_signal)
+                #                      )
 
-                self.set_life_signal(key="Strategy_next2_" + str(dn) + "long_close",
-                                     cclass="EmaShiftMultiStrategy",
-                                     method="next",
-                                     msg1=str(dn),
-                                     msg2=str("long_close"),
-                                     msg3=str(long_close)
-                                     )
+                # self.set_life_signal(key="Strategy_next2_" + str(dn) + "long_close",
+                #                      cclass="EmaShiftMultiStrategy",
+                #                      method="next",
+                #                      msg1=str(dn),
+                #                      msg2=str("long_close"),
+                #                      msg3=str(long_close)
+                #                      )
 
-                self.set_life_signal(key="Strategy_next2_" + str(dn) + "short_signal",
-                                     cclass="EmaShiftMultiStrategy",
-                                     method="next",
-                                     msg1=str(dn),
-                                     msg2=str("short_signal"),
-                                     msg3=str(short_signal)
-                                     )
+                # self.set_life_signal(key="Strategy_next2_" + str(dn) + "short_signal",
+                #                      cclass="EmaShiftMultiStrategy",
+                #                      method="next",
+                #                      msg1=str(dn),
+                #                      msg2=str("short_signal"),
+                #                      msg3=str(short_signal)
+                #                      )
 
-                self.set_life_signal(key="Strategy_next2_" + str(dn) + "short_close",
-                                     cclass="EmaShiftMultiStrategy",
-                                     method="next",
-                                     msg1=str(dn),
-                                     msg2=str("short_close"),
-                                     msg3=str(short_close)
-                                     )
-
+                # self.set_life_signal(key="Strategy_next2_" + str(dn) + "short_close",
+                #                      cclass="EmaShiftMultiStrategy",
+                #                      method="next",
+                #                      msg1=str(dn),
+                #                      msg2=str("short_close"),
+                #                      msg3=str(short_close)
+                #                      )
 
             # long_signal = True if np.random.randint(0, 3) == 0 else False
             # long_close = True if np.random.randint(0, 3) == 0 else False
@@ -1058,45 +1250,101 @@ class EmaShiftMultiStrategy(bt.Strategy):
 
             # Strategy trade
             rsrc = self.rsrc(data)
-            continue
+            # continue
             if not self.is_live_data():
                 continue
-            # TRADE -------------------------------------------------------------------------------
-            if c.is_long == 1:
-                if long_signal and self.getposition(data).size <= 0:
-                    self.log(f"{dn} Strategy: long_signal ", level=3)
 
-                    if self.getposition(data).size < 0:
-                        # Turn over Short to Long
-                        self.log(f"{dn} Strategy: Short->Long ", level=3)
-                        self.s_close(data, "Short->Long")
-                        if self.is_live_run:
-                            time.sleep(10)
+            # print("position:")
+            # for idata, position in self.broker.positions.items():
+            #     # for position in self.broker.positions:
+            #     print(idata._name, position.size)
+
+            # ax = round(self.cd[dn].ema_fast_long_down_shift_data_history[0], 8)
+            # bx = round(self.cd[dn].ema_slow_long_data_history[0], 8)
+            # cx = round(self.cd[dn].ema_fast_long_down_shift_data_history[1], 8)
+            # dx = round(self.cd[dn].ema_slow_long_data_history[1], 8)
+            #
+            # print(datetime.utcnow(), self.steps_count, dn, rsrc, ax, bx, cx, dx)
+            # if long_signal or short_signal:
+            #     print(self.steps_count, dn, long_signal, short_signal)
+
+            # if dn == "BNBUSDT":
+            #     continue
+
+            # TRADE -------------------------------------------------------------------------------
+            # print("steps", self.steps_count, dn)
+            # print(self.v[dn].trade_steps, c.max_trade_steps)
+            if (self.v[dn].trade_steps > c.max_trade_steps and not self.v[dn].trailer_long_active
+                    and not self.v[dn].trailer_short_active):
+                print(self.v[dn].trade_steps, c.max_trade_steps)
+                self.s_close(data, "close max_trade_steps")
+
+            # if self.steps_count == 701 and dn == "ETHUSDT":
+            #     self.s_buy(data)
+            #
+            # if self.steps_count == 703 and dn == "ETHUSDT":
+            #     self.s_close(data, "stop")
+            #
+            # if self.steps_count == 704 and dn == "ETHUSDT":
+            #     self.s_sell(data)
+            #
+            # if self.steps_count == 706 and dn == "ETHUSDT":
+            #     self.s_close(data, "stop")
+            #
+            # continue
+
+            if c.is_long == 1:
+                # if long_signal and self.getposition(data).size == 0.0:
+                if long_signal:
+                    self.log(f"{dn} Strategy: long_signal ", level=3)
+                    #
+                    # if self.getposition(data).size < 0:
+                    #     # Turn over Short to Long
+                    #     self.log(f"{dn} Strategy: Short->Long ", level=3)
+                    #     self.s_close(data, "Short->Long")
+                    #     if self.is_live_run:
+                    #         time.sleep(10)
                     self.s_buy(data)
 
-                elif rsrc < self.v[dn].long_stop_price and c.is_stop_loss_long == 1 and self.getposition(data).size > 0:
+                elif rsrc < self.v[dn].long_stop_price and c.is_stop_loss_long == 1 and self.getposition(data).size > 0.0:
                     self.log(f"{dn} Strategy: is_stop_loss_long ", level=3)
-
                     self.s_close(data, "Long_SLoss")
 
-                elif long_close and self.getposition(data).size > 0:
-                    self.log(f"{dn} Strategy: Long_Close ", level=3)
+                elif c.is_trailer_long == 1 and self.v[dn].trailer_long_active and rsrc < self.v[dn].trailer_long_stop_price and self.getposition(data).size > 0:
+                    self.s_close(data, "close trailer_long_active")
 
-                    self.s_close(data, "Long_Close")
+                # elif long_close and self.getposition(data).size > 0:
+                #     self.log(f"{dn} Strategy: Long_Close ", level=3)
+
+                # elif self.getposition(data).size > 0.0 and rsrc > self.v[dn].long_take_price:
+                #     self.log(f"{dn} Strategy: Long_Close ", level=3)
+                #     self.s_close(data, "Long_Close")
+
+                # if c.worker_no == 1:
+                #     print(rsrc, c.is_trailer_long, self.v[dn].trailer_long_active, self.v[dn].trailer_long_activation_price, self.v[dn].trailer_long_stop_price)
+
+                if c.is_trailer_long == 1 and self.getposition(data).size > 0.0 and rsrc > self.v[dn].trailer_long_activation_price and not self.v[dn].trailer_long_active:
+                    self.v[dn].trailer_long_active = True
+
+                if c.is_trailer_long == 1 and self.v[dn].trailer_long_active:
+
+                    self.v[dn].trailer_long_highest_price = max(self.v[dn].trailer_long_highest_price, rsrc)
+                    self.v[dn].trailer_long_stop_price = self.v[dn].trailer_long_highest_price * (1 - (c.trailer_long_offset / 1000))
 
             if c.is_short == 1:
-                if short_signal and self.getposition(data).size >= 0:
+                # if short_signal and self.getposition(data).size == 0.0:
+                if short_signal:
                     self.log(f"{dn} Strategy: short_signal ", level=3)
 
-                    if self.getposition(data).size > 0:
-                        # Turn over Long to Short
-                        self.log(f"{dn} Strategy: Long->Short ")
-                        self.s_close(data, "Long->Short")
-                        if self.is_live_run:
-                            time.sleep(10)
+                    # if self.getposition(data).size > 0.0:
+                    #     # Turn over Long to Short
+                    #     self.log(f"{dn} Strategy: Long->Short ")
+                    #     self.s_close(data, "Long->Short")
+                    #     if self.is_live_run:
+                    #         time.sleep(10)
                     self.s_sell(data)
 
-                elif rsrc > self.v[dn].short_stop_price and c.is_stop_loss_short == 1 and self.getposition(data).size < 0:
+                elif rsrc > self.v[dn].short_stop_price and c.is_stop_loss_short == 1 and self.getposition(data).size < 0.0:
                     self.log(f"{dn} Strategy: is_stop_loss_short ", level=3)
 
                     self.s_close(data, "Short_SLoss")
@@ -1104,14 +1352,12 @@ class EmaShiftMultiStrategy(bt.Strategy):
                 elif c.is_trailer_short == 1 and self.v[dn].trailer_short_active and rsrc > self.v[dn].trailer_short_stop_price and self.getposition(data).size < 0:
                     self.s_close(data,"close trailer_short_active")
 
-                elif short_close and self.getposition(data).size < 0:
-                    self.log(f"{dn} Strategy: short_close ", level=3)
-
-                    self.s_close(data, "Short_Close")
+                # elif self.getposition(data).size < 0.0 and rsrc < self.v[dn].short_take_price:
+                #     self.log(f"{dn} Strategy: short_close ", level=3)
+                #
+                #     self.s_close(data, "Short_Close")
 
                 if c.is_trailer_short == 1 and self.getposition(data).size < 0.0 and rsrc < self.v[dn].trailer_short_activation_price and not self.v[dn].trailer_short_active:
-                    # print(f"Strategy: short_signal " )
-
                     self.v[dn].trailer_short_active = True
 
                 if c.is_trailer_short == 1 and self.v[dn].trailer_short_active:
@@ -1180,7 +1426,7 @@ class EmaShiftMultiStrategy(bt.Strategy):
                 # print("close", trade.getdataname())
 
             c = self.cc[trade.getdataname()]
-            if c.show_log:
+            if c.show_log or True:
                 if trade.isclosed:  # If the position is closed
                     self.log(f'{self.closed_trade_count} Closed  {trade.getdataname()} {self.data.num2date(trade.data.datetime[0])} {trade.data.close[0]} PNL={trade.pnlcomm:.10f}, Commission{trade.pnlcomm - trade.pnl:.10f} {trade.status_names[trade.status]}')
                     self.closed_trade_count += 1
